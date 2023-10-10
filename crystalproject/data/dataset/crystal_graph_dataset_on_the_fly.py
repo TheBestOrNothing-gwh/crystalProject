@@ -8,9 +8,10 @@ from crystalproject.data.prepare.process.crystal_graph import create_crystal_gra
 
 @registry.register_dataset("CrystalGraphDatasetOnTheFly")
 class CraystalGraphDatasetOnTheFly(CraystalGraphDataset):
-    def __init__(self, root_dir, stage="predict", radius=8):
+    def __init__(self, root_dir, stage="predict", radius=8, max_nbr_num=12):
         super(CraystalGraphDatasetOnTheFly, self).__init__(root_dir, stage)
         self.radius = radius
+        self.max_nbr_num = max_nbr_num
 
     def __len__(self):
         return len(self.ids)
@@ -19,7 +20,8 @@ class CraystalGraphDatasetOnTheFly(CraystalGraphDataset):
         id = self.ids[idx]
         data = create_crystal_graph(
             os.path.join(self.root_dir, id+".cif"),
-            self.radius
+            self.radius,
+            self.max_nbr_num
         )
         atom_fea = data["atom_fea"]
         nbr_fea = data["nbr_fea"]
