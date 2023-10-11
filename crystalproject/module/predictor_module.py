@@ -30,6 +30,11 @@ class PreModule(lp.LightningModule):
                     filter(lambda p: p.requires_grad, self.parameters()),
                     **conf_optimizer["kwargs"]
                 )
+            case "SGD":
+                optimizer = torch.optim.SGD(
+                    filter(lambda p: p.requires_grad, self.parameters()),
+                    **conf_optimizer["kwargs"]
+                )
             case _:
                 self.print("Optimizer not found.")
         match conf_scheduler["name"]:
