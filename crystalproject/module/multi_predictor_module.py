@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import torch
+import torch.nn as nn
 from torch.nn import functional as F
 import torch.optim.lr_scheduler as lrs
 import lightning.pytorch as lp
@@ -24,8 +25,13 @@ class MultiPreModule(lp.LightningModule):
         model_cls = registry.get_model_class(conf_backbone["name"])
         self.backbone = model_cls(**conf_backbone["kwargs"])
         conf_head = self.hparams["head"]
-        head_cls = registry.get_head_class(**conf_head["kwargs"])
-        self.heads = [head_cls(**conf_head["kwargs"]) for _ in range(conf_head["number"])]
+        head_cls = registry.get_head_class(conf_head["name"])
+        self.heads = nn.ModuleList(
+            [
+                head_cls(**conf_head["kwargs"])
+                for _ in range(conf_head["number"])
+            ]
+        )
         
     def configure_optimizers(self):
         conf_optimizer = self.hparams["optimizers"]
@@ -58,8 +64,11 @@ class MultiPreModule(lp.LightningModule):
 
     def configure_criterion(self):
         conf_criterion = self.hparams["criterion"]
-        criterion_cls = registry.get_criterion_class(conf_criterion["name"])
-        self.criterion = criterion_cls(**conf_criterion["kwargs"])
+        match conf_criterion["name"]:
+            case "mae":
+                self.criterion = F.l1_loss
+            case _:
+                self.print("Criterion not found.")
 
     def forward(self, input):
         out = self.backbone(*input)
@@ -77,13 +86,11 @@ class MultiPreModule(lp.LightningModule):
     def validation_step(self, batch, batch_idx):
         input, output = batch
         out = self(input)
-        loss = self.loss(out, output)
-        criterion = self.criterion(out, output)
-        self.log('val_loss', loss, on_step=False, on_epoch=True,
-                 prog_bar=True, batch_size=output.shape[0])
-        self.log('val_criterion', criterion, on_step=False,
-                 on_epoch=True, prog_bar=True, batch_size=output.shape[0])
-        return loss
+        for i in range(out.size()[1]):
+            criterion = self.criterion(out[:, i], output[:, i])
+            self.log(self.hparams["config"]["name"][i]+"_val_criterion", criterion, on_step=False,
+                 on_epoch=True, prog_bar=True, batch_size=output.shape[0]) 
+
 
     def test_step(self, batch, batch_idx):
         input, output = batch
@@ -91,24 +98,23 @@ class MultiPreModule(lp.LightningModule):
         self.test_out_output.append(
             torch.cat([out, output], dim=1)
         )
-        criterion = self.criterion(out, output)
-        self.log('test_criterion', criterion, on_step=False,
-                 on_epoch=True, prog_bar=True, batch_size=output.shape[0])
-        return criterion
 
     def on_test_epoch_end(self):
         config = self.hparams["config"]
-        out_output = torch.cat(self.test_out_output, dim=0).cpu()
-        out_output = out_output.numpy()
+        out_output = torch.cat(self.test_out_output, dim=0)
         number = self.hparams["head"]["number"]
         out = out_output[:, :number]
         output = out_output[:, number:]
         for i in range(number):
+            criterion = self.criterion(out[:, i], output[:, i])
             _, ax = plt.subplots(figsize=(5, 5))
+            plt.xlabel(config["name"][i]+" predict value")
+            plt.ylabel(config["name"][i]+" true value")
+            plt.text(5, 0, f'{self.hparams["criterion"]["name"]} is {criterion}')
             Axis_line = np.linspace(*ax.get_xlim(), 2)
             ax.plot(Axis_line, Axis_line, transform=ax.transAxes,
                     linestyle='--', linewidth=2, color='black', label=config["name"][i])
-            ax.scatter(out, output, color='red')
+            ax.scatter(out[:, i].cpu(), output[:, i].cpu(), color='red')
             ax.legend()
             plt.savefig(os.path.join(config["root_dir"], config["name"][i]+'.png'),
                         bbox_inches='tight')

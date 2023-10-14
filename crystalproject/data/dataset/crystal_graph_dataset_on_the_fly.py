@@ -28,5 +28,5 @@ class CraystalGraphDatasetOnTheFly(CraystalGraphDataset):
         atom_fea = torch.tensor(atom_fea, dtype=torch.int32)
         nbr_fea = torch.tensor(nbr_fea, dtype=torch.float32)
         nbr_fea_idx = torch.tensor(nbr_fea_idx, dtype=torch.int64)
-        target = torch.tensor(torch.index_select(self.id_prop_data[id], 0, self.target_index), dtype=torch.float32)
+        target = torch.tensor([self.id_prop_data[id][i] for i in self.target_index], dtype=torch.float32)
         return (atom_fea, nbr_fea, nbr_fea_idx), target

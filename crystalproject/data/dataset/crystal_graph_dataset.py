@@ -17,7 +17,7 @@ class CraystalGraphDataset(Dataset):
         with open(os.path.join(self.root_dir, "id_prop.json"), "r") as f:
             self.id_prop_data = json.load(f)
             self.ids = list(self.id_prop_data.keys())
-        self.target_index = torch.tensor(target_index)
+        self.target_index = target_index
 
     def __len__(self):
         return len(self.ids)
@@ -31,7 +31,7 @@ class CraystalGraphDataset(Dataset):
         atom_fea = torch.tensor(atom_fea, dtype=torch.int32)
         nbr_fea = torch.tensor(nbr_fea, dtype=torch.float32)
         nbr_fea_idx = torch.tensor(nbr_fea_idx, dtype=torch.int64)
-        target = torch.tensor(torch.index_select(self.id_prop_data[id], 0, self.target_index), dtype=torch.float32)
+        target = torch.tensor([self.id_prop_data[id][i] for i in self.target_index], dtype=torch.float32)
         return (atom_fea, nbr_fea, nbr_fea_idx), target
 
     @staticmethod

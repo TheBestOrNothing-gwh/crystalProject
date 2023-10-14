@@ -25,7 +25,7 @@ class PreModule(lp.LightningModule):
         model_cls = registry.get_model_class(conf_backbone["name"])
         self.backbone = model_cls(**conf_backbone["kwargs"])
         conf_head = self.hparams["head"]
-        head_cls = registry.get_head_class(**conf_head["kwargs"])
+        head_cls = registry.get_head_class(conf_head["name"])
         self.head = head_cls(**conf_head["kwargs"])
 
     def configure_optimizers(self):
@@ -92,13 +92,9 @@ class PreModule(lp.LightningModule):
     def validation_step(self, batch, batch_idx):
         input, output = batch
         out = self(input)
-        loss = self.loss(out, self.normalize.norm(output))
         criterion = self.criterion(self.normalize.denorm(out), output)
-        self.log('val_loss', loss, on_step=False, on_epoch=True,
-                 prog_bar=True, batch_size=output.shape[0])
         self.log('val_criterion', criterion, on_step=False,
                  on_epoch=True, prog_bar=True, batch_size=output.shape[0])
-        return loss
 
     def test_step(self, batch, batch_idx):
         input, output = batch
@@ -106,22 +102,21 @@ class PreModule(lp.LightningModule):
         self.test_out_output.append(
             torch.cat([self.normalize.denorm(out), output], dim=1)
         )
-        criterion = self.criterion(self.normalize.denorm(out), output)
-        self.log('test_criterion', criterion, on_step=False,
-                 on_epoch=True, prog_bar=True, batch_size=output.shape[0])
-        return criterion
 
     def on_test_epoch_end(self):
         config = self.hparams["config"]
-        out_output = torch.cat(self.test_out_output, dim=0).cpu()
-        out_output = out_output.numpy()
+        out_output = torch.cat(self.test_out_output, dim=0)
         out = out_output[:, 0]
         output = out_output[:, 1]
-        fig, ax = plt.subplots(figsize=(5, 5))
+        criterion = self.criterion(out, output)
+        _, ax = plt.subplots(figsize=(5, 5))
+        plt.xlabel(config["name"]+" predict value")
+        plt.ylabel(config["name"]+" true value")
+        plt.text(5, 0, f'{self.hparams["criterion"]["name"]} is {criterion}')
         Axis_line = np.linspace(*ax.get_xlim(), 2)
         ax.plot(Axis_line, Axis_line, transform=ax.transAxes,
                 linestyle='--', linewidth=2, color='black', label=config["name"])
-        ax.scatter(out, output, color='red')
+        ax.scatter(out.cpu(), output.cpu(), color='red')
         ax.legend()
         plt.savefig(os.path.join(config["root_dir"], config["name"]+'.png'),
                     bbox_inches='tight')
