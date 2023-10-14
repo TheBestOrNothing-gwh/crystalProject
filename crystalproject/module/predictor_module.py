@@ -1,3 +1,6 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import os
 import torch
 from torch.nn import functional as F
 import torch.optim.lr_scheduler as lrs
@@ -15,6 +18,7 @@ class PreModule(lp.LightningModule):
         self.configure_loss()
         self.configure_criterion()
         self.configure_normalize()
+        self.test_out_output = []
 
     def configure_model(self):
         conf_model = self.hparams["model"]
@@ -94,10 +98,28 @@ class PreModule(lp.LightningModule):
     def test_step(self, batch, batch_idx):
         input, output = batch
         out = self(input)
-        criterion = self.criterion_function(self.normalize.norm(out), output)
+        self.test_out_output.append(
+            torch.cat([self.normalize.denorm(out), output], dim=1)
+        )
+        criterion = self.criterion_function(self.normalize.denorm(out), output)
         self.log('test_criterion', criterion, on_step=False,
                  on_epoch=True, prog_bar=True, batch_size=output.shape[0])
         return criterion
+
+    def on_test_epoch_end(self):
+        config = self.hparams["config"]
+        out_output = torch.cat(self.test_out_output, dim=0).cpu()
+        out_output = out_output.numpy()
+        out = out_output[:, 0]
+        output = out_output[:, 1]
+        fig, ax = plt.subplots(figsize=(5, 5))
+        Axis_line = np.linspace(*ax.get_xlim(), 2)
+        ax.plot(Axis_line, Axis_line, transform=ax.transAxes,
+                linestyle='--', linewidth=2, color='black', label=config["name"])
+        ax.scatter(out, output, color='red')
+        ax.legend()
+        plt.savefig(os.path.join(config["root_dir"], config["name"]+'.png'),
+                    bbox_inches='tight')
 
 
 if __name__ == "__main__":
