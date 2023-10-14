@@ -31,6 +31,9 @@ class Registry:
         # Mappings to respective classes.
         "model_name_mapping": {},
         "dataset_name_mapping": {},
+        "head_name_mapping": {},
+        "loss_name_mapping": {},
+        "criterion_name_mapping": {},
         "state": {},
     }
 
@@ -39,6 +42,33 @@ class Registry:
 
         def wrap(func):
             cls.mapping["model_name_mapping"][name] = func
+            return func
+
+        return wrap
+    
+    @classmethod
+    def register_head(cls, name):
+
+        def wrap(func):
+            cls.mapping["head_name_mapping"][name] = func
+            return func
+
+        return wrap
+        
+    @classmethod
+    def register_loss(cls, name):
+
+        def wrap(func):
+            cls.mapping["loss_name_mapping"][name] = func
+            return func
+
+        return wrap
+    
+    @classmethod
+    def register_criterion(cls, name):
+
+        def wrap(func):
+            cls.mapping["criterion_name_mapping"][name] = func
             return func
 
         return wrap
@@ -105,6 +135,18 @@ class Registry:
     @classmethod
     def get_model_class(cls, name):
         return cls.get_class(name, "model_name_mapping")
+
+    @classmethod
+    def get_head_class(cls, name):
+        return cls.get_class(name, "head_name_mapping")
+    
+    @classmethod
+    def get_loss_class(cls, name):
+        return cls.get_class(name, "loss_name_mapping")
+    
+    @classmethod
+    def get_criterion_class(cls, name):
+        return cls.get_class(name, "criterion_name_mapping")
 
     @classmethod
     def get_dataset_class(cls, name):

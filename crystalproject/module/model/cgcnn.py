@@ -21,9 +21,7 @@ class CrystalGraphConvNet(nn.Module):
         node_embedding={},
         edge_embedding={"dmin": 0.0, "dmax": 8.0, "step": 0.2},
         atom_fea_len=64,
-        n_conv=3,
-        h_fea_len=128,
-        n_h=1,
+        n_conv=3
     ):
         """
         Initialize CrystalGraphConvNet.
@@ -59,15 +57,6 @@ class CrystalGraphConvNet(nn.Module):
                 for _ in range(n_conv)
             ]
         )
-        self.fc = nn.Linear(atom_fea_len, h_fea_len)
-        self.softplus = nn.Softplus()
-        if n_h > 1:
-            self.fcs = nn.ModuleList(
-                [nn.Linear(h_fea_len, h_fea_len) for _ in range(n_h - 1)]
-            )
-            self.softpluses = nn.ModuleList(
-                [nn.Softplus() for _ in range(n_h - 1)])
-        self.fc_out = nn.Linear(h_fea_len, 1)
 
     def forward(self, atom_fea, nbr_fea, nbr_fea_idx, crystal_atom_idx):
         """
@@ -97,13 +86,7 @@ class CrystalGraphConvNet(nn.Module):
             atom_fea = conv(atom_fea, nbr_fea, nbr_fea_idx)
         # 池化
         crys_fea = self.pooling(atom_fea, crystal_atom_idx)
-        # 输出
-        crys_fea = self.softplus(self.fc(self.softplus(crys_fea)))
-        if hasattr(self, "fcs") and hasattr(self, "softpluses"):
-            for fc, softplus in zip(self.fcs, self.softpluses):
-                crys_fea = softplus(fc(crys_fea))
-        out = self.fc_out(crys_fea)
-        return out
+        return crys_fea
 
     def pooling(self, atom_fea, crystal_atom_idx):
         """
@@ -128,8 +111,3 @@ class CrystalGraphConvNet(nn.Module):
                         for crystal_fea in crystal_feas]
         return torch.cat(crystal_feas, dim=0)
 
-
-if __name__ == "__main__":
-    model_cls = registry.get_model_class("cgcnn")
-    model = model_cls(64, 64)
-    print()

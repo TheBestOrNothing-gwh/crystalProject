@@ -1,5 +1,4 @@
 import os
-import json
 import torch
 from crystalproject.utils.registry import registry
 from crystalproject.data.dataset.crystal_graph_dataset import CraystalGraphDataset
@@ -8,8 +7,8 @@ from crystalproject.data.prepare.process.crystal_graph import create_crystal_gra
 
 @registry.register_dataset("CrystalGraphDatasetOnTheFly")
 class CraystalGraphDatasetOnTheFly(CraystalGraphDataset):
-    def __init__(self, root_dir, stage="predict", radius=8, max_nbr_num=12):
-        super(CraystalGraphDatasetOnTheFly, self).__init__(root_dir, stage)
+    def __init__(self, root_dir, stage="predict", target_index=[0], radius=8, max_nbr_num=12):
+        super(CraystalGraphDatasetOnTheFly, self).__init__(root_dir, stage, target_index)
         self.radius = radius
         self.max_nbr_num = max_nbr_num
 
@@ -29,5 +28,5 @@ class CraystalGraphDatasetOnTheFly(CraystalGraphDataset):
         atom_fea = torch.tensor(atom_fea, dtype=torch.int32)
         nbr_fea = torch.tensor(nbr_fea, dtype=torch.float32)
         nbr_fea_idx = torch.tensor(nbr_fea_idx, dtype=torch.int64)
-        target = torch.tensor([self.id_prop_data[id]], dtype=torch.float32)
+        target = torch.tensor(torch.index_select(self.id_prop_data[id], 0, self.target_index), dtype=torch.float32)
         return (atom_fea, nbr_fea, nbr_fea_idx), target

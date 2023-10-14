@@ -21,9 +21,7 @@ class CrystalGraphAttNet(nn.Module):
         node_embedding={},
         edge_embedding={"dmin": 0.0, "dmax": 8.0, "step": 0.2},
         atom_fea_len=64,
-        n_att=3,
-        h_fea_len=128,
-        n_h=1,
+        n_att=3
     ):
         """
         Initialize CrystalGraphAttNet.
@@ -59,16 +57,6 @@ class CrystalGraphAttNet(nn.Module):
                 for _ in range(n_att)
             ]
         )
-        self.fc = nn.Linear(atom_fea_len, h_fea_len)
-        self.softplus = nn.Softplus()
-        if n_h > 1:
-            self.fcs = nn.ModuleList(
-                [nn.Linear(h_fea_len, h_fea_len) for _ in range(n_h - 1)]
-            )
-            self.softpluses = nn.ModuleList(
-                [nn.Softplus() for _ in range(n_h - 1)]
-            )
-        self.fc_out = nn.Linear(h_fea_len, 1)
 
     def forward(self, atom_fea, nbr_fea, nbr_fea_idx, crystal_atom_idx):
         """
@@ -98,13 +86,7 @@ class CrystalGraphAttNet(nn.Module):
             atom_fea = att(atom_fea, nbr_fea_idx, nbr_fea)
         # 池化
         crys_fea = self.pooling(atom_fea, crystal_atom_idx)
-        # 输出
-        crys_fea = self.softplus(self.fc(self.softplus(crys_fea)))
-        if hasattr(self, "fcs") and hasattr(self, "softpluses"):
-            for fc, softplus in zip(self.fcs, self.softpluses):
-                crys_fea = softplus(fc(crys_fea))
-        out = self.fc_out(crys_fea)
-        return out
+        return crys_fea
 
     def pooling(self, atom_fea, crystal_atom_idx):
         """
