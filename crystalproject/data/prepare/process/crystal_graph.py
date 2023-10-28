@@ -4,12 +4,7 @@ from pymatgen.core.structure import Structure
 
 def create_crystal_graph(cif_path, radius=8.0, max_num_nbr=12):
     crystal = Structure.from_file(cif_path)
-    atom_fea = np.array(
-        [
-            crystal[i].specie.number - 1
-            for i in range(len(crystal))
-        ]
-    )
+    atom_fea = np.array(crystal.atomic_numbers)
     all_nbrs = crystal.get_all_neighbors(radius, include_index=True)
     all_nbrs = [sorted(nbrs, key=lambda x: x[1]) for nbrs in all_nbrs]
     nbr_fea_idx, nbr_fea = [], []

@@ -24,7 +24,7 @@ class CraystalGraphDataset(Dataset):
 
     def __getitem__(self, idx):
         id = self.ids[idx]
-        data = np.load(os.path.join(self.root_dir, id+".npz"))
+        data = np.load(os.path.join(self.root_dir, id+".pkl"))
         atom_fea = data["atom_fea"]
         nbr_fea = data["nbr_fea"]
         nbr_fea_idx = data["nbr_fea_idx"]

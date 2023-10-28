@@ -4,6 +4,7 @@ from tqdm import tqdm
 import shutil
 import random
 import numpy as np
+import pickle
 import multiprocessing
 from crystalproject.data.prepare.process import *
 
@@ -24,10 +25,23 @@ def func_cg(root_dir, target_dir, id, radius):
         os.path.join(root_dir, id+".cif"),
         radius
     )
-    np.savez(
-        os.path.join(target_dir, id+".npz"),
-        **process_data,
+    f_save = open(
+        os.path.join(target_dir, id+".pkl"),
+        "wb"
     )
+    pickle.dump(process_data, f_save)
+    f_save.close()
+
+def func_topo(root_dir, target_dir, id):
+    process_data = create_crystal_topo(
+        os.path.join(root_dir, id+".cif")
+    )
+    f_save = open(
+        os.path.join(target_dir, id+".pkl"),
+        "wb"
+    )
+    pickle.dump(process_data, f_save)
+    f_save.close()
 
 
 def pre_control(root_dir, target_dir, id_props, stage="crystalGraph", radius=8, processes=24):
