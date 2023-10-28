@@ -8,7 +8,7 @@ from molmod.periodic import periodic
 from molmod.units import angstrom
 from toponetx.classes import CombinatorialComplex
 
-from crystalproject.data.prepare.process.utils import patterns, cc, cn, crit1, crit2, endict, poldict
+from crystalproject.data.prepare.process.utils import patterns, cc, cn, crit1, crit2
 
 
 def get_isolated_parts(graph):
@@ -121,7 +121,15 @@ def get_ligands(system):
                 if not n_parts == max(parts) + 1:
                     continue
                 # Linkage is accepted
-                linkages.append(list(match.forward.values()))
+                linkage = set(match.forward.values())
+                # 如果模式最终选择的点是所有的点，这会导致linkage和linker之间没有共同包含的点，最后形成不了边。
+                if len(match.forward.keys()) == len(allowed):
+                    for i in match.forward.keys():
+                        for vertex, depth in graph.iter_breadth_first(match.forward[i]):
+                            if depth >= 2:
+                                break
+                            linkage.add(vertex)
+                linkages.append(list(linkage))
                 ligand_indices.update(ligand_index)
                 new_graph = graph.get_subgraph([i for i in range(graph.num_vertices) if not i in ligand_indices])
                 break
@@ -135,7 +143,7 @@ def get_bond_linkages(system):
     graph = MolecularGraph(system.bonds, system.numbers)
     all_bonds = set([])
     bond_linkages = []
-    for linkages in enumerate([cc, cn]):
+    for linkages in [cc, cn]:
         indices = set([])
         all_bonds_linkage = set([])
         for name in sorted(linkages.keys(), key=lambda e: linkages[e][0].pattern_graph.num_vertices, reverse = True):
@@ -177,8 +185,7 @@ def divide_graphs(system):
     # 计算得到linkage的序号，然后可以将不在linkage序号中的原子分离出来，得到linker的序号。
     graph = MolecularGraph(system.bonds, system.numbers)
     linkages, ligands_indices = get_ligands(system)
-    if len(ligands_indices) == 0:
-        bond_linkages, ligands_bonds = get_bond_linkages(system)
+    bond_linkages, ligands_bonds = get_bond_linkages(system)
     linker_graph = graph.get_subgraph(
         [i for i in range(graph.num_vertices) if i not in ligands_indices]
     )
@@ -188,7 +195,10 @@ def divide_graphs(system):
     linker_graph = MolecularGraph(graph_edges, system.numbers)
     linkers = get_isolated_partitions(linker_graph)
     # 做完划分
-    partitions = linkages + bond_linkages + linkers
+    partitions = []
+    partitions.extend(linkages)
+    partitions.extend(bond_linkages)
+    partitions.extend(linkers)
     return partitions
 
 
@@ -228,9 +238,10 @@ def create_crystal_topo(cif_path):
     # region 计算粗粒度图，不仅要得到粗粒度图的表示，还需要得到vertex到supervertex的关系矩阵，这部分是关键
     partitions = divide_graphs(system)
     cc = CombinatorialComplex()
-    cc.add_cell_from(partitions, ranks=1)
+    cc.add_cells_from(range(system.natom), ranks=0)
+    cc.add_cells_from(partitions, ranks=1)
     # 计算关联矩阵
-    B01 = cc.incidence_martrix(0, 1).todense()
+    B01 = cc.incidence_matrix(0, 1).todense()
     # 计算粗粒度图中每个原子簇的重心的坐标
     pos = []
     graph = MolecularGraph(system.bonds, system.numbers)
@@ -246,7 +257,7 @@ def create_crystal_topo(cif_path):
                 offset = np.array([0., 0., 0.])
                 for i in range(length):
                     bond = np.array([path[i], path[i+1]])
-                    idx = np.argwhere((atom_bonds == bond).all(axis=1)).ravel()
+                    idx = np.argwhere((atom_bonds == bond).all(axis=1)).ravel()[0]
                     offset += atom_offsets[idx]
                 pos_tmp.append(system.pos[vertex] + np.dot(offset, rvecs))
         #求出重心坐标后先转换为分数坐标判断处于哪个象限，然后再通过求余预算移动到原始晶格内，最后再根据晶格矢量转换为笛卡尔坐标
@@ -255,7 +266,8 @@ def create_crystal_topo(cif_path):
     # 根据重心的坐标计算offset，方法为转换为分数坐标相减后-0.5后再向上取整。这种情况只认为两个点之间只有一条边，对于较大体系，且连边要求的距离较近时对结果不会有影响。
     # 计算粗粒度图的边
     A10 = cc.coadjacency_matrix(1, 0).tocoo()
-    edges = np.array([A10.row, A10.col])
+    # 去除自环
+    edges = np.array([[source, target] for source, target in zip(A10.row, A10.col) if source != target]).T
     offsets = []
     for i in range(edges.shape[1]):
         i0, i1 = edges[0, i], edges[1, i]
@@ -264,6 +276,7 @@ def create_crystal_topo(cif_path):
         frac = np.dot(system.cell.gvecs, delta)
         offset = np.ceil(frac - 0.5)
         offsets.append(offset)
+    offsets = np.array(offsets)
     cluster_graph = {
         "incidence_martrix": B01,
         "edges": edges,
@@ -288,11 +301,11 @@ def create_crystal_topo(cif_path):
             bond_vertex = bond_vertices[0]
             source2vertex = np.argwhere(edges[1]==bond_vertex).flatten()
             vertex2target = np.argwhere(edges[0]==bond_vertex).flatten()
-            for i in len(source2vertex):
+            for i in range(len(source2vertex)):
                 source = edges[0][source2vertex[i]]
-                for j in len(vertex2target):
+                for j in range(len(vertex2target)):
                     target = edges[1][vertex2target[j]]
-                    if (source == target) and (offsets[source2vertex[i]] == -offsets[vertex2target[j]]):
+                    if (source == target) and (offsets[source2vertex[i]] == -offsets[vertex2target[j]]).all():
                         # 检查是不是同一条边的两种表示，可以通过检查source和target，如果相同，还可以检查offset
                         continue
                     else:
@@ -320,3 +333,6 @@ def create_crystal_topo(cif_path):
         "cluster_graph": cluster_graph,
         "underling_network": underling_network,
     }
+
+if __name__ == "__main__":
+    data = create_crystal_topo("DhaTta-23.cif")

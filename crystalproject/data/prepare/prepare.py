@@ -3,7 +3,6 @@ import json
 from tqdm import tqdm
 import shutil
 import random
-import numpy as np
 import pickle
 import multiprocessing
 from crystalproject.data.prepare.process import *
