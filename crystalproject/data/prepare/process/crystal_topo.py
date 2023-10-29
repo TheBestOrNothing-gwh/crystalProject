@@ -4,7 +4,6 @@ from collections import Counter
 from pymatgen.core.structure import Structure
 from yaff import System
 from molmod import MolecularGraph, GraphSearch
-from molmod.periodic import periodic
 from molmod.units import angstrom
 from toponetx.classes import CombinatorialComplex
 
@@ -16,7 +15,7 @@ def get_isolated_parts(graph):
     n = 0
     while -1 in work:
         start = work.index(-1)
-        for i, d in graph.iter_breadth_first(start):
+        for i, _ in graph.iter_breadth_first(start):
             work[i] = n
         n += 1
     return work
@@ -29,17 +28,17 @@ def get_isolated_partitions(graph):
             part_dict[work[i]].append(i)
         else:
             part_dict[work[i]] = [i]
-    partitions = [part for part in part_dict.values() if len(part) > 1]
+    partitions = [frozenset(part) for part in part_dict.values() if len(part) > 1]
     return partitions
 
-def get_ligands(system):
+def get_linkages(system):
     graph = MolecularGraph(system.bonds, system.numbers)
     n_parts = max(get_isolated_parts(graph)) + 1
-    indices = set([])
-    linkages = []
+    linkages_indices = set([])
+    linkages = set()
     for ligand in sorted(patterns.keys(), key=lambda e: len(patterns[e][1]), reverse = True):
         pattern, allowed = patterns[ligand]
-        ligand_indices = set([])
+        indices = set([])
         # Search for pattern
         graph_search = GraphSearch(pattern)
         new_graph = graph
@@ -110,8 +109,8 @@ def get_ligands(system):
                 # 第五个约束
                 # Check that the linkage is not yet present
                 ligand_index = [match.forward[key] for key in allowed]
-                if any([i in indices for i in ligand_index]):
-                    assert all([i in indices for i in ligand_index]), '{} ({}) already occupied'.format(ligand, match.forward.values())
+                if any([i in linkages_indices for i in ligand_index]):
+                    assert all([i in linkages_indices for i in ligand_index]), '{} ({}) already occupied'.format(ligand, match.forward.values())
                     continue
                 # 第六个约束
                 # Extra criterium: the linkage does not create isolated parts, the framework remains connected
@@ -129,20 +128,21 @@ def get_ligands(system):
                             if depth >= 2:
                                 break
                             linkage.add(vertex)
-                linkages.append(list(linkage))
-                ligand_indices.update(ligand_index)
-                new_graph = graph.get_subgraph([i for i in range(graph.num_vertices) if not i in ligand_indices])
+                print(ligand)
+                linkages.add(frozenset(linkage))
+                indices.update(ligand_index)
+                new_graph = graph.get_subgraph([i for i in range(graph.num_vertices) if not i in indices])
                 break
             else:
                 break
-        indices.update(ligand_indices)
-    return linkages, indices
+        linkages_indices.update(indices)
+    linkages = list(linkages)
+    return linkages, linkages_indices
 
-def get_bond_linkages(system):
+def get_bond_linkages(graph):
     # Search for C-C or C-N bond by partitioning the system in SBUs
-    graph = MolecularGraph(system.bonds, system.numbers)
     all_bonds = set([])
-    bond_linkages = []
+    bond_linkages = set()
     for linkages in [cc, cn]:
         indices = set([])
         all_bonds_linkage = set([])
@@ -175,22 +175,23 @@ def get_bond_linkages(system):
                     new_graph = graph.get_subgraph([i for i in range(graph.num_vertices) if not i in indices])
                     for bond in bonds:
                         all_bonds_linkage.update([frozenset([match.forward[i] for i in bond])])
-                        bond_linkages.expand([match.forward[i] for i in bond])
+                        bond_linkages.add(frozenset([match.forward[i] for i in bond]))
                 else:
                     break
         all_bonds.update(all_bonds_linkage)
+    bond_linkages = list(bond_linkages)
     return bond_linkages, all_bonds
 
 def divide_graphs(system):
     # 计算得到linkage的序号，然后可以将不在linkage序号中的原子分离出来，得到linker的序号。
     graph = MolecularGraph(system.bonds, system.numbers)
-    linkages, ligands_indices = get_ligands(system)
-    bond_linkages, ligands_bonds = get_bond_linkages(system)
-    linker_graph = graph.get_subgraph(
-        [i for i in range(graph.num_vertices) if i not in ligands_indices]
+    linkages, linkages_indices = get_linkages(system)
+    sub_graph = graph.get_subgraph(
+        [i for i in range(graph.num_vertices) if i not in linkages_indices]
     )
-    graph_edges = list(linker_graph.edges)
-    for bond in ligands_bonds:
+    bond_linkages, linkages_bonds = get_bond_linkages(sub_graph)
+    graph_edges = list(sub_graph.edges)
+    for bond in linkages_bonds:
         graph_edges.remove(bond)
     linker_graph = MolecularGraph(graph_edges, system.numbers)
     linkers = get_isolated_partitions(linker_graph)
@@ -237,6 +238,7 @@ def create_crystal_topo(cif_path):
     
     # region 计算粗粒度图，不仅要得到粗粒度图的表示，还需要得到vertex到supervertex的关系矩阵，这部分是关键
     partitions = divide_graphs(system)
+    print(partitions)
     cc = CombinatorialComplex()
     cc.add_cells_from(range(system.natom), ranks=0)
     cc.add_cells_from(partitions, ranks=1)
@@ -284,6 +286,9 @@ def create_crystal_topo(cif_path):
         "offsets": offsets,
         "rvecs": rvecs,
     }
+    print(edges.T)
+    print(pos)
+    print(offsets)
     # endregion
 
     # region底层网络图，再粗粒度图上再做一次操作，将所有度为2的superVerte转换为一条边，从而作为底层网络中的边处理。
@@ -327,6 +332,10 @@ def create_crystal_topo(cif_path):
         "offsets": offsets,
         "rvecs": rvecs,
     }
+    print(indices)
+    print(edges.T)
+    print(pos)
+    print(offsets)
     # endregion
     return {
         "atom_graph": atom_graph,
@@ -335,4 +344,4 @@ def create_crystal_topo(cif_path):
     }
 
 if __name__ == "__main__":
-    data = create_crystal_topo("DhaTta-23.cif")
+    data = create_crystal_topo("853.cif")
