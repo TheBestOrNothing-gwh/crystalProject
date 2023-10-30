@@ -38,6 +38,12 @@ def get_linkages(system):
     linkages = set()
     for ligand in sorted(patterns.keys(), key=lambda e: len(patterns[e][1]), reverse = True):
         pattern, allowed = patterns[ligand]
+        print(ligand)
+        if ligand == "ccnhccnh":
+            print("asdfasdf")
+            print("asdfasdf")
+            print("asdfasdf")
+            print("asdfasdf")
         indices = set([])
         # Search for pattern
         graph_search = GraphSearch(pattern)
@@ -45,6 +51,8 @@ def get_linkages(system):
         while True:
             for match in graph_search(new_graph):
                 # 第一个约束
+                if ligand == "ccnhccnh":
+                    print("asdfasdfasdfasd")
                 if ligand in crit1.keys():
                     # Extra criterium 1: exact neighbors
                     # e.g.: pyridine ring with propyl and methyl functionalized
@@ -344,4 +352,4 @@ def create_crystal_topo(cif_path):
     }
 
 if __name__ == "__main__":
-    data = create_crystal_topo("853.cif")
+    data = create_crystal_topo("/home/gwh/project/crystalProject/models/test/test_topo/10-30/1039.cif")
