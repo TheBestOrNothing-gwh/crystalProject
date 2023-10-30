@@ -38,12 +38,6 @@ def get_linkages(system):
     linkages = set()
     for ligand in sorted(patterns.keys(), key=lambda e: len(patterns[e][1]), reverse = True):
         pattern, allowed = patterns[ligand]
-        print(ligand)
-        if ligand == "ccnhccnh":
-            print("asdfasdf")
-            print("asdfasdf")
-            print("asdfasdf")
-            print("asdfasdf")
         indices = set([])
         # Search for pattern
         graph_search = GraphSearch(pattern)
