@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import numpy as np
 
 from crystalproject.utils.registry import registry
 from crystalproject.module.model.intra_conv_layer import IntraConvLayer
