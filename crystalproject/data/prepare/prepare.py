@@ -18,7 +18,6 @@ def func_simple(root_dir, target_dir, id):
         os.path.join(target_dir, id+".cif")
     )
 
-
 def func_cg(root_dir, target_dir, id, radius):
     process_data = create_crystal_graph(
         os.path.join(root_dir, id+".cif"),
@@ -63,6 +62,14 @@ def pre_control(root_dir, target_dir, id_props, stage="crystalGraph", radius=8, 
                 pool.apply_async(
                     func_cg,
                     (root_dir, target_dir, id, radius),
+                    callback=update,
+                    error_callback=err_call_back
+                )
+        case "crystalTopo":
+            for id in ids:
+                pool.apply_async(
+                    func_topo,
+                    (root_dir, target_dir, id),
                     callback=update,
                     error_callback=err_call_back
                 )

@@ -1,22 +1,22 @@
 import os
 import torch
 from crystalproject.utils.registry import registry
-from crystalproject.data.dataset.crystal_graph_dataset import CraystalGraphDataset
+from crystalproject.data.dataset.crystal_graph_dataset import CrystalGraphDataset
 from crystalproject.data.prepare.process.crystal_graph import create_crystal_graph
 
 
 @registry.register_dataset("CrystalGraphDatasetOnTheFly")
-class CraystalGraphDatasetOnTheFly(CraystalGraphDataset):
+class CrystalGraphDatasetOnTheFly(CrystalGraphDataset):
     def __init__(self, root_dir, stage="predict", target_index=[0], radius=8, max_nbr_num=12):
-        super(CraystalGraphDatasetOnTheFly, self).__init__(root_dir, stage, target_index)
+        super(CrystalGraphDatasetOnTheFly, self).__init__(root_dir, stage, target_index)
         self.radius = radius
         self.max_nbr_num = max_nbr_num
 
     def __len__(self):
         return len(self.ids)
 
-    def __getitem__(self, idx):
-        id = self.ids[idx]
+    def __getitem__(self, index):
+        id = self.ids[index]
         data = create_crystal_graph(
             os.path.join(self.root_dir, id+".cif"),
             self.radius,

@@ -58,7 +58,7 @@ class CrystalGraphAttNet(nn.Module):
             ]
         )
 
-    def forward(self, atom_fea, nbr_fea, nbr_fea_idx, crystal_atom_idx):
+    def forward(self, atom_fea, nbr_fea, nbr_fea_idx, batch_atom_idx):
         """
         Forward pass
 
@@ -74,7 +74,7 @@ class CrystalGraphAttNet(nn.Module):
             Bond features of each atom's M neighbors
         nbr_fea_idx: torch.LongTensor shape (N, M)
             indices of M neighbors of each atom
-        crystal_atom_idx: list of torch.LongTensor of length N0
+        batch_atom_idx: list of torch.LongTensor of length N0
             Mapping from the crystal idx to atom idx
 
         """
@@ -85,10 +85,10 @@ class CrystalGraphAttNet(nn.Module):
         for att in self.atts:
             atom_fea = att(atom_fea, nbr_fea_idx, nbr_fea)
         # 池化
-        crys_fea = self.pooling(atom_fea, crystal_atom_idx)
+        crys_fea = self.pooling(atom_fea, batch_atom_idx)
         return crys_fea
 
-    def pooling(self, atom_fea, crystal_atom_idx):
+    def pooling(self, atom_fea, batch_atom_idx):
         """
         Pooling the atom features to crystal features
 
@@ -99,14 +99,10 @@ class CrystalGraphAttNet(nn.Module):
         ----------
         atom_fea: torch.Tensor shape (N, atom_fea_len)
             Atom feature vectors of the batch
-        crystal_atom_idx: List of torch.LongTensor of length N0
+        batch_atom_idx: List of torch.LongTensor of length N0
             Mapping from the crystal idx to atom idx
         """
-        assert (
-            np.sum(crystal_atom_idx)
-            == atom_fea.data.shape[0]
-        )
-        crystal_feas = torch.split(atom_fea, crystal_atom_idx.tolist(), 0)
+        crystal_feas = [atom_fea[atom_idx] for atom_idx in batch_atom_idx]
         crystal_feas = [torch.mean(crystal_fea, dim=0, keepdim=True)
                         for crystal_fea in crystal_feas]
         return torch.cat(crystal_feas, dim=0)

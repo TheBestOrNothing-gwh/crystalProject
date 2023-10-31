@@ -229,23 +229,27 @@ def create_crystal_topo(cif_path):
         edges.append([i1, i0])
         offsets.append(-offset)
     edges, offsets = np.array(edges).T, np.array(offsets)
+    offsets_real = np.dot(offsets, rvecs)
     atom_graph = {
         "numbers": numbers,
         "edges": edges,
         "pos": pos,
+        "offsets_real": offsets_real,
         "offsets": offsets,
         "rvecs": rvecs,
     }
     # endregion
-    
+
     # region 计算粗粒度图，不仅要得到粗粒度图的表示，还需要得到vertex到supervertex的关系矩阵，这部分是关键
     partitions = divide_graphs(system)
     print(partitions)
     cc = CombinatorialComplex()
     cc.add_cells_from(range(system.natom), ranks=0)
     cc.add_cells_from(partitions, ranks=1)
-    # 计算关联矩阵
-    B01 = cc.incidence_matrix(0, 1).todense()
+    # 计算粗粒度集合
+    indices = []
+    for partition in partitions:
+        indices.append(np.array(list(partition)))
     # 计算粗粒度图中每个原子簇的重心的坐标
     pos = []
     graph = MolecularGraph(system.bonds, system.numbers)
@@ -281,16 +285,15 @@ def create_crystal_topo(cif_path):
         offset = np.ceil(frac - 0.5)
         offsets.append(offset)
     offsets = np.array(offsets)
+    offsets_real = np.dot(offsets, rvecs)
     cluster_graph = {
-        "incidence_martrix": B01,
+        "indices": indices,
         "edges": edges,
         "pos": pos,
+        "offsets_real": offsets_real,
         "offsets": offsets,
         "rvecs": rvecs,
     }
-    print(edges.T)
-    print(pos)
-    print(offsets)
     # endregion
 
     # region底层网络图，再粗粒度图上再做一次操作，将所有度为2的superVerte转换为一条边，从而作为底层网络中的边处理。
@@ -327,17 +330,15 @@ def create_crystal_topo(cif_path):
     # 对剩余的节点进行提取，因为此时edges和offsets已经是新的了，但是pos还是没有删除出度为2的点的情况，
     # 只需要提取一下剩余节点的索引，用于最终的readout就可以了。
     indices = np.array(list(set(edges[0])))
+    offsets_real = np.dot(offsets, rvecs)
     underling_network = {
         "indices": indices,
         "edges": edges,
         "pos": pos,
+        "offsets_real": offsets_real,
         "offsets": offsets,
         "rvecs": rvecs,
     }
-    print(indices)
-    print(edges.T)
-    print(pos)
-    print(offsets)
     # endregion
     return {
         "atom_graph": atom_graph,
