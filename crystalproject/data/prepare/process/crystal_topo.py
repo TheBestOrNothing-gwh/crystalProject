@@ -346,4 +346,4 @@ def create_crystal_topo(cif_path):
     }
 
 if __name__ == "__main__":
-    data = create_crystal_topo("/home/gwh/project/crystalProject/models/test/test_topo/10-30/1039.cif")
+    data = create_crystal_topo("/home/gwh/project/crystalProject/models/test/test_topo/10-30/644.cif")
