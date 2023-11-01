@@ -24,7 +24,7 @@ def func_cg(root_dir, target_dir, id, radius):
         radius
     )
     f_save = open(
-        os.path.join(target_dir, id+".pkl"),
+        os.path.join(target_dir, id+"_radius.pkl"),
         "wb"
     )
     pickle.dump(process_data, f_save)
@@ -35,7 +35,7 @@ def func_topo(root_dir, target_dir, id):
         os.path.join(root_dir, id+".cif")
     )
     f_save = open(
-        os.path.join(target_dir, id+".pkl"),
+        os.path.join(target_dir, id+"_topo.pkl"),
         "wb"
     )
     pickle.dump(process_data, f_save)

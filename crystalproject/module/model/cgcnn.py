@@ -1,10 +1,60 @@
 import torch
 import torch.nn as nn
+from torch_geometric.nn import MessagePassing
+from torch_scatter import scatter
 
 from crystalproject.utils.registry import registry
-from crystalproject.module.model.intra_conv_layer import IntraConvLayer
-from crystalproject.module.utils.node_embedding import NodeEmbedding
-from crystalproject.module.utils.edge_embedding import EdgeEmbedding
+from crystalproject.module.utils.atom_embedding import AtomEmbedding
+from crystalproject.module.utils.dist_embedding import DistEmbedding
+
+
+# simple conv Layer
+@registry.register_model("cgcnn_layer")
+class IntraConvLayer(MessagePassing):
+    """
+    Convolutional operation on graphs
+    """
+
+    def __init__(self, node_fea_len, edge_fea_len, aggr="add"):
+        """
+        Initialize ConvLayer
+
+        Parameters
+        ----------
+        node_fea_len: int
+            Number of node hidden features.
+        edge_fea_len: int
+            Number of edge features.
+        aggr: str
+            aggregate function.["add", "mean", "max"]
+        """
+        super(IntraConvLayer, self).__init__(aggr)
+        self.node_fea_len = node_fea_len
+        self.edge_fea_len = edge_fea_len
+        self.fc_full = nn.Linear(
+            2*self.node_fea_len+self.edge_fea_len, 2*self.node_fea_len
+        )
+        self.sigmoid = nn.Sigmoid()
+        self.softplus = nn.Softplus()
+        self.bn1 = nn.BatchNorm1d(2*self.node_fea_len)
+        self.bn2 = nn.BatchNorm1d(self.node_fea_len)
+
+    def forward(self, node_fea, edge_fea, edge_index):
+        return self.propagate(edge_index, node_fea=node_fea, edge_fea=edge_fea)
+
+    def message(self, node_fea_i, node_fea_j, edge_fea):
+        total_fea = torch.cat([node_fea_i, node_fea_j, edge_fea], dim=1)
+        total_fea = self.fc_full(total_fea)
+        total_fea = self.bn1(total_fea)
+        nbr_filter, nbr_core = total_fea.chunk(2, dim=1)
+        nbr_filter = self.sigmoid(nbr_filter)
+        nbr_core = self.softplus(nbr_core)
+        return nbr_filter * nbr_core
+
+    def update(self, aggr_out, node_fea):
+        aggr_out = self.bn2(aggr_out)
+        out = self.softplus(node_fea+aggr_out)
+        return out
 
 
 # 预测器
@@ -41,8 +91,8 @@ class CrystalGraphConvNet(nn.Module):
             Number of hidden layers after pooling
         """
         super(CrystalGraphConvNet, self).__init__()
-        self.ari = NodeEmbedding(**node_embedding)
-        self.gd = EdgeEmbedding(**edge_embedding)
+        self.ari = AtomEmbedding(**node_embedding)
+        self.gd = DistEmbedding(**edge_embedding)
         orig_atom_fea_len = self.ari.get_dim()
         nbr_fea_len = self.gd.get_dim()
         self.embedding = nn.Linear(
@@ -102,8 +152,5 @@ class CrystalGraphConvNet(nn.Module):
             Mapping from the crystal idx to atom idx
         """
 
-        crystal_feas = [atom_fea[atom_idx] for atom_idx in batch_atom_idx]
-        crystal_feas = [torch.mean(crystal_fea, dim=0, keepdim=True)
-                        for crystal_fea in crystal_feas]
-        return torch.cat(crystal_feas, dim=0)
+        return scatter(atom_fea, batch_atom_idx, dim=0, reduce="mean")
 

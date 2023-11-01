@@ -79,12 +79,13 @@ class CrystalTopoDataset(Dataset):
                 batch_data["underling_network"]["offsets"],
                 batch_data["underling_network"]["rvecs"],
             ),
+            batch_data["batch"],
             batch_data["target"],
-        ) = (([], [], [], [], []), ([], [], [], [], []), ([], [], [], [], []), [])
+        ) = (([], [], [], [], []), ([], [], [], [], []), ([], [], [], [], []), [], [])
         base_atom_idx = 0
         base_cluster_idx = 0
         base_network_idx = 0
-        for _, data in enumerate(dataset_list):
+        for i, data in enumerate(dataset_list):
             n_atom = data["atom_graph"]["pos"].shape[0]
             n_cluster = len(data["cluster_graph"]["pos"]).shape[0]
             n_network = len(data["underling_network"]["pos"]).shape[0]
@@ -110,10 +111,12 @@ class CrystalTopoDataset(Dataset):
             batch_data["underling_network"]["offsets"].append(data["underling_network"]["offsets"])
             batch_data["underling_network"]["rvecs"].append(data["underling_network"]["rvecs"])
 
+            batch_data["batch"].append(torch.full(n_network, i))
             batch_data["target"].append(data["target"])
 
             base_atom_idx += n_atom
             base_cluster_idx += n_cluster
+            base_network_idx += n_network
         
         batch_data["atom_graph"]["number"] = torch.cat(batch_data["atom_graph"]["number"], dim=0)
         batch_data["atom_graph"]["edges"] = torch.cat(batch_data["atom_graph"]["edges"], dim=1)
@@ -133,6 +136,7 @@ class CrystalTopoDataset(Dataset):
         batch_data["underling_network"]["offsets_real"] = torch.cat(batch_data["underling_network"]["offsets_real"], dim=0)
         batch_data["underling_network"]["offsets"] = torch.cat(batch_data["underling_network"]["offsets"], dim=0)
 
+        batch_data["batch"] = torch.cat(batch_data["batch"], dim=0)
         batch_data["target"] = torch.cat(batch_data["target"], dim=0)
 
         return batch_data

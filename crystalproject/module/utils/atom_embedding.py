@@ -5,9 +5,9 @@ import json
 import numpy as np
 
 
-class NodeEmbedding(nn.Module):
+class AtomEmbedding(nn.Module):
     def __init__(self, config_path):
-        super(NodeEmbedding, self).__init__()
+        super(AtomEmbedding, self).__init__()
         with open(config_path) as f:
             elem_embedding = json.load(f)
             elem_embedding = {int(key): torch.tensor(np.array([value]), dtype=torch.float32) for key,
