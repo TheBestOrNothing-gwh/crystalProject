@@ -45,8 +45,6 @@ def get_linkages(system):
         while True:
             for match in graph_search(new_graph):
                 # 第一个约束
-                if ligand == "ccnhccnh":
-                    print("asdfasdfasdfasd")
                 if ligand in crit1.keys():
                     # Extra criterium 1: exact neighbors
                     # e.g.: pyridine ring with propyl and methyl functionalized
@@ -242,14 +240,12 @@ def create_crystal_topo(cif_path):
 
     # region 计算粗粒度图，不仅要得到粗粒度图的表示，还需要得到vertex到supervertex的关系矩阵，这部分是关键
     partitions = divide_graphs(system)
-    print(partitions)
     cc = CombinatorialComplex()
     cc.add_cells_from(range(system.natom), ranks=0)
     cc.add_cells_from(partitions, ranks=1)
-    # 计算粗粒度集合
-    indices = []
-    for partition in partitions:
-        indices.append(np.array(list(partition)))
+    # 计算粗粒度和原子之间的关联矩阵，使用稀疏矩阵表示
+    inter = cc.incidence_matrix(0, 1).tocoo()
+    inter = np.array([inter.row, inter.col])
     # 计算粗粒度图中每个原子簇的重心的坐标
     pos = []
     graph = MolecularGraph(system.bonds, system.numbers)
@@ -287,7 +283,7 @@ def create_crystal_topo(cif_path):
     offsets = np.array(offsets)
     offsets_real = np.dot(offsets, rvecs)
     cluster_graph = {
-        "indices": indices,
+        "inter": inter,
         "edges": edges,
         "pos": pos,
         "offsets_real": offsets_real,
@@ -329,10 +325,14 @@ def create_crystal_topo(cif_path):
             offsets = np.concatenate((offsets, np.array(tmp_offset)), axis=0)
     # 对剩余的节点进行提取，因为此时edges和offsets已经是新的了，但是pos还是没有删除出度为2的点的情况，
     # 只需要提取一下剩余节点的索引，用于最终的readout就可以了。
-    indices = np.array(list(set(edges[0])))
+    indices = np.array(sorted(list(set(edges[0]))))
+    pos = pos[indices]
+    map = {item:index for index, item in enumerate(indices)}
+    edges = np.vectorize(map.get)(edges)
+    inter = np.array([[i, j] for i, j in map.items()]).T
     offsets_real = np.dot(offsets, rvecs)
     underling_network = {
-        "indices": indices,
+        "inter": inter,
         "edges": edges,
         "pos": pos,
         "offsets_real": offsets_real,
