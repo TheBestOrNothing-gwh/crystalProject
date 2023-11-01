@@ -143,7 +143,7 @@ class SchNet(torch.nn.Modules):
             batch = batch_data["batch"]
         
         row, col = edge_index
-        dist = (pos[row] - (pos[col] + offsets_real)).norm(dim=-1)
+        dist = ((pos[col] + offsets_real) - pos[row]).norm(dim=-1)
         dist_emb = self.dist_emb(dist)
 
         for update_e, update_v in zip(self.update_es, self.update_vs):
