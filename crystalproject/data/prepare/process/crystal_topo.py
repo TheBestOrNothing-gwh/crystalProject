@@ -2,7 +2,9 @@ import numpy as np
 from collections import Counter
 
 from pymatgen.core.structure import Structure
-from yaff import System
+from yaff import System, log
+log.set_level(0)
+from yaff.pes.ext import Cell
 from molmod import MolecularGraph, GraphSearch
 from molmod.units import angstrom
 from toponetx.classes import CombinatorialComplex
@@ -208,6 +210,11 @@ def create_crystal_topo(cif_path):
     rvecs = structure.lattice._matrix
     numbers = np.array(structure.atomic_numbers)
     pos = structure.cart_coords
+    # 转换为原子单位制
+    cell = Cell(rvecs)
+    frac_pos = np.dot(pos, cell.gvecs.T)
+    rvecs = rvecs * angstrom
+    pos = np.dot(frac_pos, rvecs)
     system = System(pos=pos, numbers=numbers, rvecs=rvecs)
     if system.bonds is None:
         system.detect_bonds()
@@ -220,7 +227,7 @@ def create_crystal_topo(cif_path):
         i0, i1 = system.bonds[ibond]
         delta = system.pos[i0] - system.pos[i1]
         # 转换为分数距离
-        frac = np.dot(system.cell.gvecs, delta)
+        frac = np.dot(delta, system.cell.gvecs.T)
         offset = np.ceil(frac - 0.5)
         edges.append([i0, i1])
         offsets.append(offset)
@@ -265,7 +272,7 @@ def create_crystal_topo(cif_path):
                     offset += atom_offsets[idx]
                 pos_tmp.append(system.pos[vertex] + np.dot(offset, rvecs))
         #求出重心坐标后先转换为分数坐标判断处于哪个象限，然后再通过求余预算移动到原始晶格内，最后再根据晶格矢量转换为笛卡尔坐标
-        pos.append(np.dot(np.remainder(np.dot(system.cell.gvecs, np.mean(np.array(pos_tmp), axis=0)), 1.), rvecs))
+        pos.append(np.dot(np.remainder(np.dot(np.mean(np.array(pos_tmp), system.cell.gvecs.T)), 1.), rvecs))
     pos = np.array(pos)
     # 根据重心的坐标计算offset，方法为转换为分数坐标相减后-0.5后再向上取整。这种情况只认为两个点之间只有一条边，对于较大体系，且连边要求的距离较近时对结果不会有影响。
     # 计算粗粒度图的边
@@ -347,4 +354,4 @@ def create_crystal_topo(cif_path):
     }
 
 if __name__ == "__main__":
-    data = create_crystal_topo("/home/gwh/project/crystalProject/models/test/test_topo/10-30/644.cif")
+    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/CoRE-COF-Database/CoRE-COFs_DT1242-v7.0/13.cif")
