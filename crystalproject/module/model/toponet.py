@@ -9,7 +9,7 @@ from crystalproject.module.utils.atom_embedding import AtomEmbedding
 @registry.register_model("toponet")
 class TopoNet(nn.Module):
     """
-    完整的拓扑网络，分为三层图神经网络，第1,3层使用的网络是相同的，或者是schnet、dimenet++、spherenet，第二层则是一个简单的图卷积网络
+    完整的拓扑网络，分为三层图神经网络，第1,3层使用的网络是3D图神经网络，或者是schnet、dimenet++、spherenet，第二层则是一个简单的图卷积网络
     """
 
     def __init__(

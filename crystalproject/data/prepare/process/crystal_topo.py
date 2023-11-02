@@ -272,7 +272,7 @@ def create_crystal_topo(cif_path):
                     offset += atom_offsets[idx]
                 pos_tmp.append(system.pos[vertex] + np.dot(offset, rvecs))
         #求出重心坐标后先转换为分数坐标判断处于哪个象限，然后再通过求余预算移动到原始晶格内，最后再根据晶格矢量转换为笛卡尔坐标
-        pos.append(np.dot(np.remainder(np.dot(np.mean(np.array(pos_tmp), system.cell.gvecs.T)), 1.), rvecs))
+        pos.append(np.dot(np.remainder(np.dot(np.mean(np.array(pos_tmp), axis=0), system.cell.gvecs.T), 1.), rvecs))
     pos = np.array(pos)
     # 根据重心的坐标计算offset，方法为转换为分数坐标相减后-0.5后再向上取整。这种情况只认为两个点之间只有一条边，对于较大体系，且连边要求的距离较近时对结果不会有影响。
     # 计算粗粒度图的边
@@ -335,6 +335,7 @@ def create_crystal_topo(cif_path):
     indices = np.array(sorted(list(set(edges[0]))))
     pos = pos[indices]
     map = {item:index for index, item in enumerate(indices)}
+    print(map)
     edges = np.vectorize(map.get)(edges)
     inter = np.array([[i, j] for i, j in map.items()]).T
     offsets_real = np.dot(offsets, rvecs)
@@ -354,4 +355,11 @@ def create_crystal_topo(cif_path):
     }
 
 if __name__ == "__main__":
-    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/CoRE-COF-Database/CoRE-COFs_DT1242-v7.0/13.cif")
+    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/CoRE-COF-Database/CoRE-COFs_DT1242-v7.0/1211.cif")
+    print(-1 in data["atom_graph"]["offsets"])
+    print(data["cluster_graph"]["inter"])
+    print(data["cluster_graph"]["edges"])
+    print(data["cluster_graph"]["offsets"])
+    print(data["underling_network"]["edges"])
+    print(data["underling_network"]["pos"])
+    print(data["underling_network"]["offsets"])
