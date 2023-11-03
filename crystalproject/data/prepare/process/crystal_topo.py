@@ -33,12 +33,16 @@ def get_isolated_partitions(graph):
     partitions = [frozenset(part) for part in part_dict.values() if len(part) > 1]
     return partitions
 
-def get_linkages(system):
+def get_linkages(system, use_bond_types=False, bond_types=[]):
     graph = MolecularGraph(system.bonds, system.numbers)
     n_parts = max(get_isolated_parts(graph)) + 1
     linkages_indices = set([])
     linkages = set()
     for ligand in sorted(patterns.keys(), key=lambda e: len(patterns[e][1]), reverse = True):
+        if use_bond_types:
+            if ligand.lower() not in [bond_type.lower() for bond_type in bond_types]:
+                continue
+        print(ligand)
         pattern, allowed = patterns[ligand]
         indices = set([])
         # Search for pattern
@@ -141,7 +145,7 @@ def get_linkages(system):
     linkages = list(linkages)
     return linkages, linkages_indices
 
-def get_bond_linkages(graph):
+def get_bond_linkages(graph, use_bond_types=False, linkage_types=[]):
     # Search for C-C or C-N bond by partitioning the system in SBUs
     all_bonds = set([])
     bond_linkages = set()
@@ -149,6 +153,9 @@ def get_bond_linkages(graph):
         indices = set([])
         all_bonds_linkage = set([])
         for name in sorted(linkages.keys(), key=lambda e: linkages[e][0].pattern_graph.num_vertices, reverse = True):
+            if use_bond_types:
+                if name.lower() not in [linkage_type.lower() for linkage_type in linkage_types]:
+                    continue
             pattern, bonds = linkages[name]
             bonds = np.array(bonds)
             # Search for pattern
@@ -184,15 +191,15 @@ def get_bond_linkages(graph):
     bond_linkages = list(bond_linkages)
     return bond_linkages, all_bonds
 
-def divide_graphs(system):
+def divide_graphs(system, use_bond_types=False, bond_types=[], linker_types=[]):
     # 计算得到linkage的序号，然后可以将不在linkage序号中的原子分离出来，得到linker的序号。
     graph = MolecularGraph(system.bonds, system.numbers)
-    linkages, linkages_indices = get_linkages(system)
+    linkages, linkages_indices = get_linkages(system, use_bond_types, bond_types)
     sub_graph = graph.get_subgraph(
         [i for i in range(graph.num_vertices) if i not in linkages_indices]
     )
-    bond_linkages, linkages_bonds = get_bond_linkages(sub_graph)
     graph_edges = list(sub_graph.edges)
+    bond_linkages, linkages_bonds = get_bond_linkages(sub_graph, use_bond_types, linker_types)
     for bond in linkages_bonds:
         graph_edges.remove(bond)
     linker_graph = MolecularGraph(graph_edges, system.numbers)
@@ -205,7 +212,9 @@ def divide_graphs(system):
     return partitions
 
 
-def create_crystal_topo(cif_path):
+def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = False, bond_types=[], linker_types=[]):
+    print(bond_types)
+    print(linker_types)
     structure = Structure.from_file(cif_path)
     rvecs = structure.lattice._matrix
     numbers = np.array(structure.atomic_numbers)
@@ -219,6 +228,42 @@ def create_crystal_topo(cif_path):
     if system.bonds is None:
         system.detect_bonds()
     
+
+    # region 计算原子半径图
+    sources, targets, offsets, distances = structure.get_neighbor_list(r=radius)
+    sources_2, targets_2, offsets_2 = [], [], []
+    # 选择最近的一批邻居，至多max_num_nbr个
+    for i in range(numbers.shape[0]):
+        index = sources == i
+        source = sources[index]
+        target = targets[index]
+        offset = offsets[index]
+        distance = distances[index]
+
+        index = np.argsort(distance)
+        index = index if index.shape[0] < max_num_nbr else index[:max_num_nbr]
+        
+        source = source[index]
+        target = target[index]
+        offset = offset[index]
+        distance = distance[index]
+        
+        sources_2.append(source)
+        targets_2.append(target)
+        offsets_2.append(offset)
+    edges = np.array([np.concatenate(sources_2, axis=0), np.concatenate(targets_2, axis=0)])
+    offsets = np.concatenate(offsets_2, axis=0)
+    offsets_real = np.dot(offsets, rvecs)
+    atom_radius_graph = {
+        "numbers": numbers,
+        "edges": edges,
+        "pos": pos,
+        "offsets_real": offsets_real,
+        "offsets": offsets,
+        "rvecs": rvecs,
+    }
+    # endregion
+
     # region计算原子图
     # 将bonds扩充为原来的两倍，并且计算offset，得到edges和offset
     edges = []
@@ -243,10 +288,11 @@ def create_crystal_topo(cif_path):
         "offsets": offsets,
         "rvecs": rvecs,
     }
+    print(edges)
     # endregion
 
     # region 计算粗粒度图，不仅要得到粗粒度图的表示，还需要得到vertex到supervertex的关系矩阵，这部分是关键
-    partitions = divide_graphs(system)
+    partitions = divide_graphs(system, use_bond_types, bond_types, linker_types)
     cc = CombinatorialComplex()
     cc.add_cells_from(range(system.natom), ranks=0)
     cc.add_cells_from(partitions, ranks=1)
@@ -280,6 +326,7 @@ def create_crystal_topo(cif_path):
     # 去除自环
     edges = np.array([[source, target] for source, target in zip(A10.row, A10.col) if source != target]).T
     offsets = []
+    print(edges)
     for i in range(edges.shape[1]):
         i0, i1 = edges[0, i], edges[1, i]
         delta = pos[i0] - pos[i1]
@@ -335,7 +382,6 @@ def create_crystal_topo(cif_path):
     indices = np.array(sorted(list(set(edges[0]))))
     pos = pos[indices]
     map = {item:index for index, item in enumerate(indices)}
-    print(map)
     edges = np.vectorize(map.get)(edges)
     inter = np.array([[i, j] for i, j in map.items()]).T
     offsets_real = np.dot(offsets, rvecs)
@@ -348,14 +394,19 @@ def create_crystal_topo(cif_path):
         "rvecs": rvecs,
     }
     # endregion
+    
     return {
+        "atom_radius_graph": atom_radius_graph,
         "atom_graph": atom_graph,
         "cluster_graph": cluster_graph,
         "underling_network": underling_network,
     }
 
 if __name__ == "__main__":
-    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/CoRE-COF-Database/CoRE-COFs_DT1242-v7.0/1211.cif")
+    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/cofs_Methane/debug/linker107_N_linker32_CH_cds_relaxed_interp_2.cif",
+                               use_bond_types=True,
+                               bond_types=["imine"],
+                               linker_types=[])
     print(-1 in data["atom_graph"]["offsets"])
     print(data["cluster_graph"]["inter"])
     print(data["cluster_graph"]["edges"])
