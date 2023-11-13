@@ -4,7 +4,7 @@ from tqdm import tqdm
 import shutil
 import pickle
 import multiprocessing
-from crystalproject.data.prepare.process import *
+
 
 
 def err_call_back(err):
@@ -17,20 +17,8 @@ def func_simple(root_dir, target_dir, id):
         os.path.join(target_dir, id+".cif")
     )
 
-def func_cg(root_dir, target_dir, id, radius=8, max_nbr_num=12):
-    process_data = create_crystal_graph(
-        os.path.join(root_dir, id+".cif"),
-        radius,
-        max_nbr_num,
-    )
-    f_save = open(
-        os.path.join(target_dir, id+"_radius.pkl"),
-        "wb"
-    )
-    pickle.dump(process_data, f_save)
-    f_save.close()
-
 def func_topo(root_dir, target_dir, row, radius=8, max_nbr_num=12):
+    from crystalproject.data.prepare.process.crystal_topo import create_crystal_topo
     process_data = create_crystal_topo(
         os.path.join(root_dir, row["name"]+".cif"),
         radius,
@@ -61,14 +49,6 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=8, max_
                     callback=update,
                     error_callback=err_call_back
                 )
-        case "crystalGraph":
-            for _, row in datas.iterrows():
-                pool.apply_async(
-                    func_cg,
-                    (root_dir, target_dir, row["name"], radius, max_nbr_num),
-                    callback=update,
-                    error_callback=err_call_back
-                )
         case "crystalTopo":
             for _, row in datas.iterrows():
                 pool.apply_async(
@@ -84,7 +64,7 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=8, max_
     datas.to_json(os.path.join(target_dir, "id_prop.jsonl"), orient="records", lines=True)
 
 
-def prepare_data(root_dir, target_dir, split=[], stage="simple", radius=8, processes=24):
+def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", radius=8, processes=24):
     datas = pd.read_json(os.path.join(root_dir, "id_prop.jsonl"), orient="records", lines=True)
     if len(split) != 0:
         assert (
@@ -110,6 +90,7 @@ def prepare_data(root_dir, target_dir, split=[], stage="simple", radius=8, proce
 
 if __name__ == "__main__":
     prepare_data(
-        "/home/gwh/project/crystalProject/DATA/cofs_Methane/debug_structures_small",
-        "/home/gwh/project/crystalProject/DATA/cofs_Methane/debug_structures_small_test"
+        "/home/bachelor/gwh/project/crystalProject/DATA/cofs_Methane/structures_primitive",
+        "/home/bachelor/gwh/project/crystalProject/DATA/cofs_Methane/structures_primitive_process",
+        stage="crystalTopo"
     )
