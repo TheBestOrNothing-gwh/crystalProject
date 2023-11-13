@@ -77,30 +77,27 @@ class PreModule(lp.LightningModule):
         self.normalize = Normalizer(**conf_normalize)
 
     def forward(self, input):
-        out = self.backbone(*input)
+        out = self.backbone(input)
         out = self.head(out)
         return out
 
     def training_step(self, batch, batch_idx):
-        input, output = batch[0], batch[1]
-        out = self(input)
-        loss = self.loss(out, self.normalize.norm(output))
+        out = self(batch)
+        loss = self.loss(out, self.normalize.norm(batch["target"]))
         self.log('train_loss', loss, on_step=False,
-                 on_epoch=True, prog_bar=True, batch_size=output.shape[0])
+                 on_epoch=True, prog_bar=True, batch_size=batch["target"].shape[0])
         return loss
 
     def validation_step(self, batch, batch_idx):
-        input, output = batch
-        out = self(input)
-        criterion = self.criterion(self.normalize.denorm(out), output)
+        out = self(batch)
+        criterion = self.criterion(self.normalize.denorm(out), batch["target"])
         self.log('val_criterion', criterion, on_step=False,
-                 on_epoch=True, prog_bar=True, batch_size=output.shape[0])
+                 on_epoch=True, prog_bar=True, batch_size=batch["target"].shape[0])
 
     def test_step(self, batch, batch_idx):
-        input, output = batch
-        out = self(input)
+        out = self(batch)
         self.test_out_output.append(
-            torch.cat([self.normalize.denorm(out), output], dim=1)
+            torch.cat([self.normalize.denorm(out), batch["target"]], dim=1)
         )
 
     def on_test_epoch_end(self):

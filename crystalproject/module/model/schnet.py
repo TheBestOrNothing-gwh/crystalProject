@@ -70,31 +70,8 @@ class update_v(torch.nn.Module):
         return v + out
 
 
-class update_u(torch.nn.Module):
-    def __init__(self, hidden_channels, out_channels, reduce):
-        super(update_u, self).__init__()
-        self.lin1 = Linear(hidden_channels, hidden_channels // 2)
-        self.act = ShiftedSoftplus()
-        self.lin2 = Linear(hidden_channels // 2, out_channels)
-        self.reduce = reduce
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        torch.nn.init.xavier_uniform_(self.lin1.weight)
-        self.lin1.bias.data.fill_(0)
-        torch.nn.init.xavier_uniform_(self.lin2.weight)
-        self.lin2.bias.data.fill_(0)
-
-    def forward(self, v, batch):
-        v = self.lin1(v)
-        v = self.act(v)
-        v = self.lin2(v)
-        u = scatter(v, batch, dim=0, reduce=self.reduce)
-        return u
-
-
 @registry.register_model("schnet")
-class SchNet(torch.nn.Modules):
+class SchNet(torch.nn.Module):
     r"""
         The re-implementation for SchNet from the `"SchNet: A Continuous-filter Convolutional Neural Network for Modeling Quantum Interactions" <https://arxiv.org/abs/1706.08566>`_ paper
         under the 3DGN gramework from `"Spherical Message Passing for 3D Molecular Graphs" <https://openreview.net/forum?id=givsRXsOt9r>`_ paper.
@@ -108,7 +85,7 @@ class SchNet(torch.nn.Modules):
             cutoff (float, optional): Cutoff distance for interatomic interactions. (default: :obj:`10.0`).
             reduce
     """
-    def __init__(self, cutoff=5.0, num_layers=6, hidden_channels=128, out_channels=1, num_filters=128, num_gaussians=50, reduce="mean"):
+    def __init__(self, cutoff=5.0, num_layers=6, hidden_channels=128, out_channels=1, num_filters=128, num_gaussians=50):
         super(SchNet, self).__init__()
 
         self.cutoff = cutoff
@@ -124,23 +101,17 @@ class SchNet(torch.nn.Modules):
 
         self.update_es = torch.nn.ModuleList([
             update_e(hidden_channels, num_filters, num_gaussians, cutoff) for _ in range(num_layers)])
-        
-        self.update_u = update_u(hidden_channels, out_channels, reduce)
 
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.init_v.reset_parameters()
         for update_e in self.update_es:
             update_e.reset_parameters()
         for update_v in self.update_vs:
             update_v.reset_parameters()
-        self.update_u.reset_parameters()
 
-    def forward(self, batch_data, readout=False):
-        v, pos, edge_index, offsets_real= batch_data["v"], batch_data["pos"], batch_data["edges"], batch_data["offsets_real"]
-        if readout:
-            batch = batch_data["batch"]
+    def forward(self, batch_data):
+        v, pos, edge_index, offsets_real = batch_data["v"], batch_data["pos"], batch_data["edges"], batch_data["offsets_real"]
         
         row, col = edge_index
         dist = ((pos[col] + offsets_real) - pos[row]).norm(dim=-1)
@@ -149,8 +120,4 @@ class SchNet(torch.nn.Modules):
         for update_e, update_v in zip(self.update_es, self.update_vs):
             e = update_e(v, dist, dist_emb, edge_index)
             v = update_v(v,e, edge_index)
-        if readout:
-            u = self.update_u(v, batch)
-            return u
-        else :
-            return v
+        return v

@@ -8,8 +8,7 @@ from crystalproject.module.utils.atom_embedding import AtomEmbedding
 from crystalproject.module.utils.dist_embedding import DistEmbedding
 
 
-# simple conv Layer
-@registry.register_model("cgcnn_layer")
+
 class IntraConvLayer(MessagePassing):
     """
     Convolutional operation on graphs
@@ -67,9 +66,8 @@ class CrystalGraphConvNet(nn.Module):
 
     def __init__(
         self,
-        node_embedding={},
         edge_embedding={"dmin": 0.0, "dmax": 8.0, "step": 0.2},
-        atom_fea_len=64,
+        hidden_channels=64,
         n_conv=3
     ):
         """
@@ -77,11 +75,11 @@ class CrystalGraphConvNet(nn.Module):
 
         Parameters
         ----------
-        orig_atom_fea_len: int
+        orig_hidden_channels: int
             Number of atom_features in the input.
         nbr_fea_len: int
             Number of bond features
-        atom_fea_len: int
+        hidden_channels: int
             Number of hidden atom features in the convolutional layers
         n_conv: int
             Number of convolutional layers
@@ -91,23 +89,19 @@ class CrystalGraphConvNet(nn.Module):
             Number of hidden layers after pooling
         """
         super(CrystalGraphConvNet, self).__init__()
-        self.ari = AtomEmbedding(**node_embedding)
         self.gd = DistEmbedding(**edge_embedding)
-        orig_atom_fea_len = self.ari.get_dim()
         nbr_fea_len = self.gd.get_dim()
-        self.embedding = nn.Linear(
-            orig_atom_fea_len, atom_fea_len, bias=False)
         self.convs = nn.ModuleList(
             [
                 IntraConvLayer(
-                    node_fea_len=atom_fea_len,
+                    node_fea_len=hidden_channels,
                     edge_fea_len=nbr_fea_len
                 )
                 for _ in range(n_conv)
             ]
         )
 
-    def forward(self, atom_fea, nbr_fea, nbr_fea_idx, batch_atom_idx):
+    def forward(self, batch_data):
         """
         Forward pass
 
@@ -117,7 +111,7 @@ class CrystalGraphConvNet(nn.Module):
 
         Parameters
         ----------
-        atom_fea: torch.Tensor shape (N, orig_atom_fea_len)
+        atom_fea: torch.Tensor shape (N, orig_hidden_channels)
             Atom features from atom type
         nbr_fea: torch.Tensor shape (N, M, nbr_fea_len)
             Bond features of each atom's M neighbors
@@ -128,29 +122,11 @@ class CrystalGraphConvNet(nn.Module):
 
         """
         # 嵌入，卷积
-        atom_fea = self.ari(atom_fea)
-        nbr_fea = self.gd(nbr_fea)
-        atom_fea = self.embedding(atom_fea)
+        atom_fea, pos, nbr_fea_idx, offsets_real = batch_data["v"], batch_data["pos"], batch_data["edges"], batch_data["offsets_real"]
+        
+        row, col = nbr_fea_idx
+        dist = ((pos[col] + offsets_real) - pos[row]).norm(dim=-1)
+        nbr_fea = self.gd(dist)
         for conv in self.convs:
             atom_fea = conv(atom_fea, nbr_fea, nbr_fea_idx)
-        # 池化
-        crys_fea = self.pooling(atom_fea, batch_atom_idx)
-        return crys_fea
-
-    def pooling(self, atom_fea, batch_atom_idx):
-        """
-        Pooling the atom features to crystal features
-
-        N: Total number of atoms in the batch
-        N0: Total number of crystals in the batch
-
-        Parameters
-        ----------
-        atom_fea: torch.Tensor shape (N, atom_fea_len)
-            Atom feature vectors of the batch
-        batch_atom_idx: List of torch.LongTensor of length N0
-            Mapping from the crystal idx to atom idx
-        """
-
-        return scatter(atom_fea, batch_atom_idx, dim=0, reduce="mean")
-
+        return atom_fea

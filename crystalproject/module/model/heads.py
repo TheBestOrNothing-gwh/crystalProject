@@ -5,7 +5,7 @@ from crystalproject.utils.registry import registry
 @registry.register_head("mlphead")
 class MLPhead(nn.Module):
 
-    def __init__(self, fea_in_len=64, fea_len=128, n_h=1, classification=False):
+    def __init__(self, fea_in_len=128, fea_len=128, n_h=1, classification=False):
         super(MLPhead, self).__init__()
         self.classification = classification
         self.fc0 = nn.Linear(fea_in_len, fea_len)

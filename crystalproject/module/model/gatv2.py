@@ -4,8 +4,8 @@ import numpy as np
 from torch_geometric.nn.conv import GATv2Conv
 
 from crystalproject.utils.registry import registry
-from crystalproject.module.utils.node_embedding import NodeEmbedding
-from crystalproject.module.utils.edge_embedding import EdgeEmbedding
+from crystalproject.module.utils.atom_embedding import AtomEmbedding
+from crystalproject.module.utils.dist_embedding import DistEmbedding
 
 
 # 基于GAT_v2的预测器
@@ -42,8 +42,8 @@ class CrystalGraphAttNet(nn.Module):
             Number of hidden layers after pooling
         """
         super(CrystalGraphAttNet, self).__init__()
-        self.ari = NodeEmbedding(**node_embedding)
-        self.gd = EdgeEmbedding(**edge_embedding)
+        self.ari = AtomEmbedding(**node_embedding)
+        self.gd = DistEmbedding(**edge_embedding)
         orig_atom_fea_len = self.ari.get_dim()
         nbr_fea_len = self.gd.get_dim()
         self.embedding = nn.Linear(orig_atom_fea_len, atom_fea_len, bias=False)

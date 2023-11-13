@@ -136,7 +136,6 @@ def get_linkages(system, use_bond_types=False, bond_types=[]):
                             if depth >= 2:
                                 break
                             linkage.add(vertex)
-                print(ligand)
                 linkages.add(frozenset(linkage))
                 indices.update(ligand_index)
                 new_graph = graph.get_subgraph([i for i in range(graph.num_vertices) if not i in indices])
@@ -216,10 +215,7 @@ def divide_graphs(system, use_bond_types=False, bond_types=[], linker_types=[]):
 
 
 def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = False, bond_types=[], linker_types=[]):
-    start = time.time()
     structure = Structure.from_file(cif_path)
-    print(time.time() - start)
-    start = time.time()
     rvecs = structure.lattice._matrix
     numbers = np.array(structure.atomic_numbers)
     pos = structure.cart_coords
@@ -229,13 +225,9 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
     rvecs = rvecs * angstrom
     pos = np.dot(frac_pos, rvecs)
     system = System(pos=pos, numbers=numbers, rvecs=rvecs)
-    print(time.time() - start)
-    start = time.time()
     if system.bonds is None:
         system.detect_bonds()
     
-    print(time.time() - start)
-    start = time.time()
     # region 计算原子半径图
     sources, targets, offsets, distances = structure.get_neighbor_list(r=radius)
     sources_2, targets_2, offsets_2 = [], [], []
@@ -270,8 +262,7 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
         "rvecs": rvecs,
     }
     # endregion
-    print(time.time() - start)
-    start = time.time()
+
     # region计算原子图
     # 将bonds扩充为原来的两倍，并且计算offset，得到edges和offset
     edges = []
@@ -297,8 +288,7 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
         "rvecs": rvecs,
     }
     # endregion
-    print(time.time() - start)
-    start = time.time()
+
     # region 计算粗粒度图，不仅要得到粗粒度图的表示，还需要得到vertex到supervertex的关系矩阵，这部分是关键
     partitions = divide_graphs(system, use_bond_types, bond_types, linker_types)
     cc = CombinatorialComplex()
@@ -357,8 +347,6 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
         "rvecs": rvecs,
     }
     # endregion
-    print(time.time() - start)
-    start = time.time()
     # region底层网络图，再粗粒度图上再做一次操作，将所有度为2的superVerte转换为一条边，从而作为底层网络中的边处理。
     # 首先，检索出所有出度为2的点，然后再将这些点去掉，去掉后，原来和这个点相连的两个点之间将会连接。
     pos, edges, offsets = pos, edges, offsets
@@ -407,8 +395,6 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
         "rvecs": rvecs,
     }
     # endregion
-    print(time.time() - start)
-    start = time.time()
     
     return {
         "atom_radius_graph": atom_radius_graph,
@@ -418,12 +404,10 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
     }
 
 if __name__ == "__main__":
-    start = time.time()
     data = create_crystal_topo("/home/bachelor/gwh/project/crystalProject/DATA/cofs_Methane/debug/linker97_C_linker64_C_nbo_relaxed_interp_3.cif",
                                use_bond_types=True,
                                bond_types=["CC"],
                                linker_types=["linker97", "linker64"])
-    print(time.time() - start)
     fig, ax = get_fig_ax()
     draw_cell(ax, data["atom_graph"]["rvecs"], color="black")
     draw_atoms(ax, )

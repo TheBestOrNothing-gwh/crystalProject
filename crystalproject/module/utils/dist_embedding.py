@@ -19,9 +19,10 @@ class DistEmbedding(nn.Module):
     def get_dim(self):
         return self.dim
 
-    def forward(self, x):
+    def forward(self, dist):
+        dist = dist.view(-1, 1) - self.filter.view(1, -1)
         return torch.exp(
-            -torch.pow(x - self.filter, 2) / self.var
+            -torch.pow(dist, 2) / self.var
         )
     
 
