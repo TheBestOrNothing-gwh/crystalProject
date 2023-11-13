@@ -52,7 +52,7 @@ def draw_cell(ax, lattice, s_point=None, **kwargs):
     :param s_point: <np.array> start point of p_lattice
     :param kwargs: matplotlib plot3D kwargs
     """
-    vec1, vec2, vec3 = lattice
+    vec1, vec2, vec3 = lattice[0], lattice[1], lattice[2]
     if s_point is None:
         s_point = np.zeros(3)
 
@@ -66,7 +66,7 @@ def draw_cell(ax, lattice, s_point=None, **kwargs):
         draw_line(ax, s_point + v1 + v2, opp_vec, **kwargs)
 
 
-def draw_atoms(ax, atoms, atomic_scale):
+def draw_atoms(ax, atoms, atomic_scale=1):
     """
     Draw p_atoms using matplotlib
     :param ax: <matplotlib.axes> figure axis

@@ -1,6 +1,7 @@
 import numpy as np
 from collections import Counter
 import time
+from matplotlib import pyplot as plt
 
 from pymatgen.core.structure import Structure
 from yaff import System, log
@@ -424,7 +425,10 @@ if __name__ == "__main__":
                                linker_types=["linker97", "linker64"])
     print(time.time() - start)
     fig, ax = get_fig_ax()
-    draw_cell()
+    draw_cell(ax, data["atom_graph"]["rvecs"], color="black")
+    draw_atoms(ax, )
+    plt.savefig("cell.png")
+
     print(-1 in data["atom_graph"]["offsets"])
     print(data["cluster_graph"]["inter"])
     print(data["cluster_graph"]["edges"])
