@@ -11,6 +11,7 @@ from molmod.units import angstrom
 from toponetx.classes import CombinatorialComplex
 
 from crystalproject.data.prepare.process.utils import patterns, cc, cn, crit1, crit2
+from crystalproject.visualize import *
 
 
 def get_isolated_parts(graph):
@@ -422,6 +423,8 @@ if __name__ == "__main__":
                                bond_types=["CC"],
                                linker_types=["linker97", "linker64"])
     print(time.time() - start)
+    fig, ax = get_fig_ax()
+    draw_cell()
     print(-1 in data["atom_graph"]["offsets"])
     print(data["cluster_graph"]["inter"])
     print(data["cluster_graph"]["edges"])
