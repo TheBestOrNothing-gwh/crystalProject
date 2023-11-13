@@ -41,7 +41,7 @@ def func_topo(root_dir, target_dir, row, radius=8, max_nbr_num=12):
         row["linker_types"],
     )
     f_save = open(
-        os.path.join(target_dir, id+"_topo.pkl"),
+        os.path.join(target_dir, row["name"]+"_topo.pkl"),
         "wb"
     )
     pickle.dump(process_data, f_save)
@@ -50,9 +50,9 @@ def func_topo(root_dir, target_dir, row, radius=8, max_nbr_num=12):
 
 def pre_control(root_dir, target_dir, datas, stage="crystalGraph", radius=8, max_nbr_num=12, processes=24):
     pool = multiprocessing.Pool(processes=processes)
-    # pbar = tqdm(total=len(datas))
-    # pbar.set_description("process data")
-    # update = lambda *args: pbar.update()
+    pbar = tqdm(total=len(datas))
+    pbar.set_description("process data")
+    update = lambda *args: pbar.update()
     match stage:
         case "simple":
             for _, row in datas.iterrows():
@@ -72,23 +72,21 @@ def pre_control(root_dir, target_dir, datas, stage="crystalGraph", radius=8, max
                 )
         case "crystalTopo":
             for _, row in datas.iterrows():
-                # pool.apply_async(
-                #     func_topo,
-                #     (root_dir, target_dir, row, radius, max_nbr_num),
-                #     callback=update,
-                #     error_callback=err_call_back
-                # )
-                print(row["name"])
-                func_topo(root_dir, target_dir, row, radius, max_nbr_num)
+                pool.apply_async(
+                    func_topo,
+                    (root_dir, target_dir, row, radius, max_nbr_num),
+                    callback=update,
+                    error_callback=err_call_back
+                )
         case _:
             print("No such data format.")
     pool.close()
     pool.join()
-    datas.to_csv(os.path.join(target_dir, "id_prop.csv"), index=0)
+    datas.to_json(os.path.join(target_dir, "id_prop.json"), orient="records", lines=True)
 
 
 def prepare_data(root_dir, target_dir, split=[], stage="simple", radius=8, processes=24):
-    datas = pd.read_csv(os.path.join(root_dir, "id_prop.csv"))
+    datas = pd.read_json(os.path.join(root_dir, "id_prop.json"), orient="records", lines=True)
     if len(split) != 0:
         assert (
             abs(split[0] + split[1] + split[2] - 1) <= 1e-5

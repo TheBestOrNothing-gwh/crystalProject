@@ -1,5 +1,6 @@
 import numpy as np
 from collections import Counter
+import time
 
 from pymatgen.core.structure import Structure
 from yaff import System, log
@@ -42,7 +43,6 @@ def get_linkages(system, use_bond_types=False, bond_types=[]):
         if use_bond_types:
             if ligand.lower() not in [bond_type.lower() for bond_type in bond_types]:
                 continue
-        print(ligand)
         pattern, allowed = patterns[ligand]
         indices = set([])
         # Search for pattern
@@ -185,6 +185,7 @@ def get_bond_linkages(graph, use_bond_types=False, linkage_types=[]):
                     for bond in bonds:
                         all_bonds_linkage.update([frozenset([match.forward[i] for i in bond])])
                         bond_linkages.add(frozenset([match.forward[i] for i in bond]))
+                    break
                 else:
                     break
         all_bonds.update(all_bonds_linkage)
@@ -213,9 +214,10 @@ def divide_graphs(system, use_bond_types=False, bond_types=[], linker_types=[]):
 
 
 def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = False, bond_types=[], linker_types=[]):
-    print(bond_types)
-    print(linker_types)
+    start = time.time()
     structure = Structure.from_file(cif_path)
+    print(time.time() - start)
+    start = time.time()
     rvecs = structure.lattice._matrix
     numbers = np.array(structure.atomic_numbers)
     pos = structure.cart_coords
@@ -225,10 +227,13 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
     rvecs = rvecs * angstrom
     pos = np.dot(frac_pos, rvecs)
     system = System(pos=pos, numbers=numbers, rvecs=rvecs)
+    print(time.time() - start)
+    start = time.time()
     if system.bonds is None:
         system.detect_bonds()
     
-
+    print(time.time() - start)
+    start = time.time()
     # region 计算原子半径图
     sources, targets, offsets, distances = structure.get_neighbor_list(r=radius)
     sources_2, targets_2, offsets_2 = [], [], []
@@ -263,7 +268,8 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
         "rvecs": rvecs,
     }
     # endregion
-
+    print(time.time() - start)
+    start = time.time()
     # region计算原子图
     # 将bonds扩充为原来的两倍，并且计算offset，得到edges和offset
     edges = []
@@ -288,9 +294,9 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
         "offsets": offsets,
         "rvecs": rvecs,
     }
-    print(edges)
     # endregion
-
+    print(time.time() - start)
+    start = time.time()
     # region 计算粗粒度图，不仅要得到粗粒度图的表示，还需要得到vertex到supervertex的关系矩阵，这部分是关键
     partitions = divide_graphs(system, use_bond_types, bond_types, linker_types)
     cc = CombinatorialComplex()
@@ -304,19 +310,24 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
     graph = MolecularGraph(system.bonds, system.numbers)
     atom_bonds, atom_offsets = edges.T, offsets
     for partition in partitions:
-        sub_graph = graph.get_subgraph(partition)
-        central_vertices = sub_graph.central_vertices
-        central_vertex = sub_graph.central_vertex
+        sub_graph = graph.get_subgraph(list(partition), normalize=True)
+        central_vertices = list(sub_graph._old_vertex_indexes[sub_graph.central_vertices])
+        central_vertex = sub_graph._old_vertex_indexes[sub_graph.central_vertex]
         pos_tmp = []
-        for vertex, length, path in sub_graph.iter_breadth_first(central_vertex, do_paths=True):
+        count = len(central_vertices)
+        # 修改为在原图上进行广度优先搜索，这样得到的边的序号是原先的，并且搜索到所有的中心节点后就可以退出了。
+        for vertex, length, path in graph.iter_breadth_first(central_vertex, do_paths=True):
             if vertex in central_vertices:
+                count -= 1
                 # 统计当前节点相对于中心原子的offset是多少，根据整条路径不断累加就可以得到了
                 offset = np.array([0., 0., 0.])
                 for i in range(length):
                     bond = np.array([path[i], path[i+1]])
                     idx = np.argwhere((atom_bonds == bond).all(axis=1)).ravel()[0]
                     offset += atom_offsets[idx]
-                pos_tmp.append(system.pos[vertex] + np.dot(offset, rvecs))
+                pos_tmp.append(system.pos[vertex] + np.dot(offset, rvecs))       
+                if count == 0:
+                    break
         #求出重心坐标后先转换为分数坐标判断处于哪个象限，然后再通过求余预算移动到原始晶格内，最后再根据晶格矢量转换为笛卡尔坐标
         pos.append(np.dot(np.remainder(np.dot(np.mean(np.array(pos_tmp), axis=0), system.cell.gvecs.T), 1.), rvecs))
     pos = np.array(pos)
@@ -326,7 +337,6 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
     # 去除自环
     edges = np.array([[source, target] for source, target in zip(A10.row, A10.col) if source != target]).T
     offsets = []
-    print(edges)
     for i in range(edges.shape[1]):
         i0, i1 = edges[0, i], edges[1, i]
         delta = pos[i0] - pos[i1]
@@ -345,7 +355,8 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
         "rvecs": rvecs,
     }
     # endregion
-
+    print(time.time() - start)
+    start = time.time()
     # region底层网络图，再粗粒度图上再做一次操作，将所有度为2的superVerte转换为一条边，从而作为底层网络中的边处理。
     # 首先，检索出所有出度为2的点，然后再将这些点去掉，去掉后，原来和这个点相连的两个点之间将会连接。
     pos, edges, offsets = pos, edges, offsets
@@ -394,6 +405,8 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
         "rvecs": rvecs,
     }
     # endregion
+    print(time.time() - start)
+    start = time.time()
     
     return {
         "atom_radius_graph": atom_radius_graph,
@@ -403,10 +416,12 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
     }
 
 if __name__ == "__main__":
-    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/cofs_Methane/debug/linker107_N_linker32_CH_cds_relaxed_interp_2.cif",
+    start = time.time()
+    data = create_crystal_topo("/home/bachelor/gwh/project/crystalProject/DATA/cofs_Methane/debug/linker97_C_linker64_C_nbo_relaxed_interp_3.cif",
                                use_bond_types=True,
-                               bond_types=["imine"],
-                               linker_types=[])
+                               bond_types=["CC"],
+                               linker_types=["linker97", "linker64"])
+    print(time.time() - start)
     print(-1 in data["atom_graph"]["offsets"])
     print(data["cluster_graph"]["inter"])
     print(data["cluster_graph"]["edges"])
