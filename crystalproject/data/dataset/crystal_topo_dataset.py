@@ -17,7 +17,7 @@ class CrystalTopoDataset(Dataset):
             case _:
                 self.root_dir = root_dir
         self.target_index = target_index
-        self.datas = pd.read_json(os.path.join(self.root_dir, "id_prop.jsonl"), orient="records", lines=True)
+        self.datas = pd.read_json(os.path.join(self.root_dir, "id_prop.json"), orient="records", lines=True)
         self.on_the_fly = on_the_fly
         self.radius = radius
         self.max_nbr_num = max_nbr_num
