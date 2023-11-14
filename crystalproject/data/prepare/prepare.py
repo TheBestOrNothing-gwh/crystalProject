@@ -4,7 +4,9 @@ from tqdm import tqdm
 import shutil
 import pickle
 import multiprocessing
+import json
 
+from crystalproject.data.prepare.process.crystal_topo import create_crystal_topo
 
 
 def err_call_back(err):
@@ -13,12 +15,13 @@ def err_call_back(err):
 
 def func_simple(root_dir, target_dir, id):
     shutil.copy(
-        os.path.join(root_dir, id+".cif"),
-        os.path.join(target_dir, id+".cif")
-    )
+            os.path.join(root_dir, id+".cif"),
+            os.path.join(target_dir, id+".cif")
+        )
 
 def func_topo(root_dir, target_dir, row, radius=8, max_nbr_num=12):
-    from crystalproject.data.prepare.process.crystal_topo import create_crystal_topo
+    if os.path.exists(os.path.join(target_dir, row["name"]+".pkl")):
+        return 
     process_data = create_crystal_topo(
         os.path.join(root_dir, row["name"]+".cif"),
         radius,
@@ -61,11 +64,21 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=8, max_
             print("No such data format.")
     pool.close()
     pool.join()
-    datas.to_json(os.path.join(target_dir, "id_prop.jsonl"), orient="records", lines=True)
+    files = os.listdir(target_dir)
+    files = [file.split(".")[0] for file in files]
+    datas = datas[datas["name"].isin(files)]
+    return datas
 
 
 def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", radius=8, processes=24):
-    datas = pd.read_json(os.path.join(root_dir, "id_prop.jsonl"), orient="records", lines=True)
+    with open(os.path.join(root_dir, "id_prop.json")) as f:
+        datas = json.load(f)
+    datas = pd.json_normalize(datas)
+    # 进行数据处理，并返回处理完后所有剩余的部分
+    os.makedirs(os.path.join(target_dir, "all"))
+    datas = pre_control(root_dir, os.path.join(target_dir, "all"), datas.iloc[:, :],
+                stage=stage, radius=radius, processes=processes)
+    datas.to_json(os.path.join(target_dir, "id_prop_all.json"))
     if len(split) != 0:
         assert (
             abs(split[0] + split[1] + split[2] - 1) <= 1e-5
@@ -73,19 +86,14 @@ def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", ra
         # random.seed(2023)
         # 设置好pandas的随机数，让每一次划分数据集都是相同的
         datas = datas.sample(frac=1.0)
+        # 划分数据集
         split_index_1, split_index_2 = int(datas.shape[0] * split[0]), int(datas.shape[0] * (split[0] + split[1]))
-        os.makedirs(os.path.join(target_dir, "train"))
-        pre_control(root_dir, os.path.join(target_dir, "train"), datas.iloc[0:split_index_1, :],
-                    stage=stage, radius=radius, processes=processes)
-        os.makedirs(os.path.join(target_dir, "val"))
-        pre_control(root_dir, os.path.join(target_dir, "val"), datas.iloc[split_index_1:split_index_2, :],
-                    stage=stage, radius=radius, processes=processes)
-        os.makedirs(os.path.join(target_dir, "test"))
-        pre_control(root_dir, os.path.join(target_dir, "test"), datas.iloc[split_index_2:, :],
-                    stage=stage, radius=radius, processes=processes)
-    else:
-        pre_control(root_dir, target_dir, datas,
-                    stage=stage, radius=radius, processes=processes)
+        train_datas = datas.iloc[:split_index_1, :]
+        val_datas = datas.iloc[split_index_1:split_index_2, :]
+        test_datas = datas.iloc[split_index_2:, :]
+        train_datas.to_json(os.path.join(target_dir, "id_prop_train.json"), orient="records", force_ascii=True, indent=4)
+        val_datas.to_json(os.path.join(target_dir, "id_prop_val.json"), orient="records", force_ascii=True, indent=4)
+        test_datas.to_json(os.path.join(target_dir, "id_prop_test.json"), orient="records", force_ascii=True, indent=4)
 
 
 if __name__ == "__main__":

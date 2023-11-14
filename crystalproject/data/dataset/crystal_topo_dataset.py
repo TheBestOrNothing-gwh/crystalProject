@@ -1,6 +1,7 @@
 import torch
 import os
 import pandas as pd
+import json
 import pickle
 from torch.utils.data import Dataset
 
@@ -11,13 +12,16 @@ from crystalproject.data.prepare.process.crystal_topo import create_crystal_topo
 @registry.register_dataset("CrystalTopoDataset")
 class CrystalTopoDataset(Dataset):
     def __init__(self, root_dir, stage="predict", target_index=["name"], on_the_fly=False, radius=8.0, max_nbr_num=12):
+        self.root_dir = root_dir
         match stage:
             case "train" | "val" | "test":
-                self.root_dir = os.path.join(root_dir, stage)
+                self.id_prop = "id_prop" + "_stage" + ".json"
             case _:
-                self.root_dir = root_dir
+                self.id_prop = "id_prop_all.json"
         self.target_index = target_index
-        self.datas = pd.read_json(os.path.join(self.root_dir, "id_prop.json"), orient="records", lines=True)
+        with open(os.path.join(self.root_dir, self.id_prop)) as f:
+            datas = json.load(f)
+        self.datas = pd.json_normalize(datas)
         self.on_the_fly = on_the_fly
         self.radius = radius
         self.max_nbr_num = max_nbr_num
@@ -29,9 +33,9 @@ class CrystalTopoDataset(Dataset):
         value = self.datas.loc[index]
         name = value["name"]
         if self.on_the_fly:
-            data = create_crystal_topo(os.path.join(self.root_dir, name+".cif"), self.radius, self.max_nbr_num)
+            data = create_crystal_topo(os.path.join(self.root_dir, "all", name+".cif"), self.radius, self.max_nbr_num)
         else:
-            data = pickle.load(open(os.path.join(self.root_dir, name+'.pkl'), "rb"))
+            data = pickle.load(open(os.path.join(self.root_dir, "all", name+'.pkl'), "rb"))
 
         data["atom_radius_graph"]["numbers"] = torch.tensor(data["atom_radius_graph"]["numbers"], dtype=torch.int32)
         data["atom_radius_graph"]["edges"] = torch.tensor(data["atom_radius_graph"]["edges"], dtype=torch.int64)
