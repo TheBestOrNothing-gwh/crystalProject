@@ -404,15 +404,10 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types = F
     }
 
 if __name__ == "__main__":
-    data = create_crystal_topo("/home/bachelor/gwh/project/crystalProject/DATA/cofs_Methane/debug/linker97_C_linker64_C_nbo_relaxed_interp_3.cif",
+    data = create_crystal_topo("/home/bachelor/gwh/project/crystalProject/DATA/cofs_Methane/structures_primitive/linker109_C_linker77_C_cds_relaxed.cif",
                                use_bond_types=True,
                                bond_types=["CC"],
-                               linker_types=["linker97", "linker64"])
-    fig, ax = get_fig_ax()
-    draw_cell(ax, data["atom_graph"]["rvecs"], color="black")
-    draw_atoms(ax, )
-    plt.savefig("cell.png")
-
+                               linker_types=["linker109"])
     print(-1 in data["atom_graph"]["offsets"])
     print(data["cluster_graph"]["inter"])
     print(data["cluster_graph"]["edges"])

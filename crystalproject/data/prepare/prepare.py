@@ -75,10 +75,11 @@ def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", ra
         datas = json.load(f)
     datas = pd.json_normalize(datas)
     # 进行数据处理，并返回处理完后所有剩余的部分
-    os.makedirs(os.path.join(target_dir, "all"))
+    if not os.path.exists(os.path.join(target_dir, "all")):
+        os.makedirs(os.path.join(target_dir, "all"))
     datas = pre_control(root_dir, os.path.join(target_dir, "all"), datas.iloc[:, :],
                 stage=stage, radius=radius, processes=processes)
-    datas.to_json(os.path.join(target_dir, "id_prop_all.json"))
+    datas.to_json(os.path.join(target_dir, "id_prop_all.json"), orient="records", force_ascii=True, indent=4)
     if len(split) != 0:
         assert (
             abs(split[0] + split[1] + split[2] - 1) <= 1e-5
