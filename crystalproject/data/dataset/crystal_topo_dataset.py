@@ -11,11 +11,11 @@ from crystalproject.data.prepare.process.crystal_topo import create_crystal_topo
 
 @registry.register_dataset("CrystalTopoDataset")
 class CrystalTopoDataset(Dataset):
-    def __init__(self, root_dir, stage="predict", target_index=["name"], on_the_fly=False, radius=8.0, max_nbr_num=12):
+    def __init__(self, root_dir, stage="predict", target_index=[], on_the_fly=False, radius=8.0, max_nbr_num=12):
         self.root_dir = root_dir
         match stage:
             case "train" | "val" | "test":
-                self.id_prop = "id_prop" + "_stage" + ".json"
+                self.id_prop = "id_prop_" + stage + ".json"
             case _:
                 self.id_prop = "id_prop_all.json"
         self.target_index = target_index
@@ -65,7 +65,7 @@ class CrystalTopoDataset(Dataset):
         data["underling_network"]["offsets"] = torch.tensor(data["underling_network"]["offsets"], dtype=torch.int32)
         data["underling_network"]["rvecs"] = torch.tensor(data["underling_network"]["rvecs"], dtype=torch.float32)
 
-        data["target"] = torch.tensor([[value[i] for i in self.target_index if i != "name"]], dtype=torch.float32)
+        data["target"] = torch.tensor([[value[i] for i in self.target_index]], dtype=torch.float32)
 
         return data
 
