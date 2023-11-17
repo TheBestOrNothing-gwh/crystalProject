@@ -5,6 +5,9 @@ import torch
 from torch.nn import functional as F
 import torch.optim.lr_scheduler as lrs
 import lightning.pytorch as lp
+from sklearn.metrics import mean_absolute_error, r2_score
+from scipy.stats import spearmanr
+
 from crystalproject.utils.registry import registry
 from crystalproject.module.model import *
 from crystalproject.module.utils.normalize import Normalizer
@@ -16,9 +19,9 @@ class PreModule(lp.LightningModule):
         self.save_hyperparameters()
         self.configure_model()
         self.configure_loss()
-        self.configure_criterion()
         self.configure_normalize()
-        self.test_out_output = []
+        self.test_value = []
+        self.test_pre = []
 
     def configure_model(self):
         conf_backbone = self.hparams["backbone"]
@@ -64,14 +67,6 @@ class PreModule(lp.LightningModule):
             case _:
                 self.print("Loss not found.")
 
-    def configure_criterion(self):
-        conf_criterion = self.hparams["criterion"]
-        match conf_criterion["name"]:
-            case "mae":
-                self.criterion = F.l1_loss
-            case _:
-                self.print("Criterion not found.")
-
     def configure_normalize(self):
         conf_normalize = self.hparams["normalize"]
         self.normalize = Normalizer(**conf_normalize)
@@ -90,30 +85,33 @@ class PreModule(lp.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         out = self(batch)
-        criterion = self.criterion(self.normalize.denorm(out), batch["target"])
+        criterion = mean_absolute_error(self.normalize.denorm(out), batch["target"])
         self.log('val_criterion', criterion, on_step=False,
                  on_epoch=True, prog_bar=True, batch_size=batch["target"].shape[0])
 
     def test_step(self, batch, batch_idx):
         out = self(batch)
-        self.test_out_output.append(
-            torch.cat([self.normalize.denorm(out), batch["target"]], dim=1)
-        )
+        self.test_value.append(batch["target"])
+        self.test_pre.append(self.normalize.denorm(out))
 
     def on_test_epoch_end(self):
         config = self.hparams["config"]
-        out_output = torch.cat(self.test_out_output, dim=0)
-        out = out_output[:, 0]
-        output = out_output[:, 1]
-        criterion = self.criterion(out, output)
+        test_value = torch.cat(self.test_value, dim=0)
+        test_pre = torch.cat(self.test_pre, dim=0)
+        mae = mean_absolute_error(test_pre, test_value)
+        r2 = r2_score(test_pre, test_value)
+        ro = spearmanr(test_pre, test_value)[0]
         _, ax = plt.subplots(figsize=(5, 5))
-        plt.xlabel(config["name"]+" predict value")
-        plt.ylabel(config["name"]+" true value")
-        plt.text(5, 0, f'{self.hparams["criterion"]["name"]} is {criterion}')
+        plt.title(config["name"])
+        plt.xlabel("predict value")
+        plt.ylabel("true value")
+        plt.text(5, 0, f'mae : {mae}')
+        plt.text(5, 1, f'r2 : {r2}')
+        plt.text(5, 2, f'spearmanr: {ro}')
         Axis_line = np.linspace(*ax.get_xlim(), 2)
         ax.plot(Axis_line, Axis_line, transform=ax.transAxes,
                 linestyle='--', linewidth=2, color='black', label=config["name"])
-        ax.scatter(out.cpu(), output.cpu(), color='red')
+        ax.scatter(test_pre.cpu(), test_value.cpu(), color='red')
         ax.legend()
         plt.savefig(os.path.join(config["root_dir"], config["name"]+'.png'),
                     bbox_inches='tight')

@@ -11,13 +11,16 @@ from crystalproject.data.prepare.process.crystal_topo import create_crystal_topo
 
 @registry.register_dataset("CrystalTopoDataset")
 class CrystalTopoDataset(Dataset):
-    def __init__(self, root_dir, stage="predict", target_index=[], on_the_fly=False, radius=8.0, max_nbr_num=12):
+    def __init__(self, root_dir, stage="predict", descriptor_index=[], target_index=[], on_the_fly=False, radius=8.0, max_nbr_num=12):
         self.root_dir = root_dir
         match stage:
             case "train" | "val" | "test":
                 self.id_prop = "id_prop_" + stage + ".json"
-            case _:
+            case "predict":
                 self.id_prop = "id_prop_all.json"
+            case _:
+                pass
+        self.descriptor_index = descriptor_index
         self.target_index = target_index
         with open(os.path.join(self.root_dir, self.id_prop)) as f:
             datas = json.load(f)
@@ -65,6 +68,7 @@ class CrystalTopoDataset(Dataset):
         data["underling_network"]["offsets"] = torch.tensor(data["underling_network"]["offsets"], dtype=torch.int32)
         data["underling_network"]["rvecs"] = torch.tensor(data["underling_network"]["rvecs"], dtype=torch.float32)
 
+        data["descriptor"] = torch.tensor([[value[i] for i in self.descriptor_index]], dtype=torch.float32)
         data["target"] = torch.tensor([[value[i] for i in self.target_index]], dtype=torch.float32)
 
         return data
@@ -116,8 +120,9 @@ class CrystalTopoDataset(Dataset):
                 batch_data["batch"]["cluster"],
                 batch_data["batch"]["network"]
             ),
+            batch_data["descriptor"],
             batch_data["target"],
-        ) = (([], [], [], [], [], []), ([], [], [], [], [], []), ([], [], [], [], [], []), ([], [], [], [], [], []), ([], [], []), [])
+        ) = (([], [], [], [], [], []), ([], [], [], [], [], []), ([], [], [], [], [], []), ([], [], [], [], [], []), ([], [], []), [], [])
         base_atom_idx = 0
         base_cluster_idx = 0
         base_network_idx = 0
@@ -158,6 +163,7 @@ class CrystalTopoDataset(Dataset):
             batch_data["batch"]["cluster"].append(torch.full((n_cluster,), i))
             batch_data["batch"]["network"].append(torch.full((n_network,), i))
             
+            batch_data["descriptor"].append(data["descriptor"])
             batch_data["target"].append(data["target"])
 
             base_atom_idx += n_atom
@@ -192,6 +198,7 @@ class CrystalTopoDataset(Dataset):
         batch_data["batch"]["cluster"] = torch.cat(batch_data["batch"]["cluster"], dim=0)
         batch_data["batch"]["network"] = torch.cat(batch_data["batch"]["network"], dim=0)
 
+        batch_data["descriptor"] = torch.cat(batch_data["descriptor"], dim=0)
         batch_data["target"] = torch.cat(batch_data["target"], dim=0)
 
         return batch_data
