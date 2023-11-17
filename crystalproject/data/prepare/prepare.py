@@ -19,7 +19,7 @@ def func_simple(root_dir, target_dir, id):
             os.path.join(target_dir, id+".cif")
         )
 
-def func_topo(root_dir, target_dir, row, radius=8, max_nbr_num=12):
+def func_topo(root_dir, target_dir, row, radius=5.0, max_nbr_num=12):
     if os.path.exists(os.path.join(target_dir, row["name"]+".pkl")):
         return 
     process_data = create_crystal_topo(
@@ -38,7 +38,7 @@ def func_topo(root_dir, target_dir, row, radius=8, max_nbr_num=12):
     f_save.close()
 
 
-def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=8, max_nbr_num=12, processes=24):
+def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, max_nbr_num=12, processes=24):
     pool = multiprocessing.Pool(processes=processes)
     pbar = tqdm(total=len(datas))
     pbar.set_description("process data")
@@ -70,10 +70,11 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=8, max_
     return datas
 
 
-def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", radius=8, processes=24):
+def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", radius=5.0, processes=24):
     with open(os.path.join(root_dir, "id_prop.json")) as f:
         datas = json.load(f)
     datas = pd.json_normalize(datas)
+    datas = datas.iloc[:1000, :]
     # 进行数据处理，并返回处理完后所有剩余的部分
     if not os.path.exists(os.path.join(target_dir, "all")):
         os.makedirs(os.path.join(target_dir, "all"))

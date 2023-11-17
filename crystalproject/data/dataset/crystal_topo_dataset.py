@@ -11,7 +11,7 @@ from crystalproject.data.prepare.process.crystal_topo import create_crystal_topo
 
 @registry.register_dataset("CrystalTopoDataset")
 class CrystalTopoDataset(Dataset):
-    def __init__(self, root_dir, stage="predict", descriptor_index=[], target_index=[], on_the_fly=False, radius=8.0, max_nbr_num=12):
+    def __init__(self, root_dir, stage="predict", descriptor_index=[], target_index=[], on_the_fly=False, radius=5.0, max_nbr_num=12):
         self.root_dir = root_dir
         match stage:
             case "train" | "val" | "test":
