@@ -74,7 +74,6 @@ def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", ra
     with open(os.path.join(root_dir, "id_prop.json")) as f:
         datas = json.load(f)
     datas = pd.json_normalize(datas)
-    datas = datas.iloc[:1000, :]
     # 进行数据处理，并返回处理完后所有剩余的部分
     if not os.path.exists(os.path.join(target_dir, "all")):
         os.makedirs(os.path.join(target_dir, "all"))
