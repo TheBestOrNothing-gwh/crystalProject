@@ -1,7 +1,5 @@
 import numpy as np
 from collections import Counter
-import time
-from matplotlib import pyplot as plt
 
 from pymatgen.core.structure import Structure
 from yaff import System, log
