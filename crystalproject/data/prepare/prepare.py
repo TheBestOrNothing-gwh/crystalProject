@@ -7,6 +7,7 @@ import multiprocessing
 import json
 
 from crystalproject.data.prepare.process.crystal_topo import create_crystal_topo
+from crystalproject.data.prepare.process.crystal_RACs import create_crystal_RACs
 
 
 def err_call_back(err):
@@ -37,10 +38,24 @@ def func_topo(root_dir, target_dir, row, radius=5.0, max_nbr_num=12):
     pickle.dump(process_data, f_save)
     f_save.close()
 
-def func_RACs():
-    TODO
+def func_RACs(root_dir, target_dir, row, is_mean):
+    if os.path.exists(os.path.join(target_dir, row["name"]+".json")):
+        return
+    process_data = create_crystal_RACs(
+        os.path.join(root_dir, row["name"]+".cif"),
+        is_mean,
+        row["use_bond_types"],
+        row["bond_types"],
+        row["linker_types"],
+    )
+    f_save = open(
+        os.path.join(target_dir, row["name"]+"json"),
+        "wb"
+    )
+    f_save.write(json.dumps(process_data))
+    f_save.close()
 
-def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, max_nbr_num=12, processes=24):
+def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, max_nbr_num=12, processes=24, is_mean=True):
     pool = multiprocessing.Pool(processes=processes)
     pbar = tqdm(total=len(datas))
     pbar.set_description("process data")
@@ -59,6 +74,14 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, ma
                 pool.apply_async(
                     func_topo,
                     (root_dir, target_dir, row, radius, max_nbr_num),
+                    callback=update,
+                    error_callback=err_call_back
+                )
+        case "crystalRACs":
+            for _, row in datas.iterrows():
+                pool.apply_async(
+                    func_RACs,
+                    (root_dir, target_dir, row, is_mean),
                     callback=update,
                     error_callback=err_call_back
                 )
