@@ -10,6 +10,7 @@ from molmod.units import angstrom
 
 from crystalproject.data.prepare.process.utils import endict, poldict
 from crystalproject.data.prepare.process.graph_match import get_linkages, get_bond_linkages
+from crystalproject.data.prepare.process.check import check_isolated, check_period_connection, check_valence
 
 
 def iter_graphs(system, use_bond_types=False, bond_types=[], linker_types=[]):
@@ -100,7 +101,11 @@ def create_crystal_RACs(cif_path, is_mean=True, use_bond_types=False, bond_types
     system = System(pos=pos, numbers=numbers, rvecs=rvecs)
     if system.bonds is None:
         system.detect_bonds()
-
+    # 合法性检查
+    assert check_period_connection(system), "错误的周期性边界条件导致晶格间不连通"
+    assert check_valence, "结构中存在错误的化合价，如氢原子形成了两个键等"
+    check_result, system = check_isolated(system)
+    assert check_result, "结构中存在游离的片段"
     # 计算RACs
     racs = {}
     for name, graph, start, scope in iter_graphs(system, use_bond_types, bond_types, linker_types):
