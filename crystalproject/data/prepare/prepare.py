@@ -37,6 +37,8 @@ def func_topo(root_dir, target_dir, row, radius=5.0, max_nbr_num=12):
     pickle.dump(process_data, f_save)
     f_save.close()
 
+def func_RACs():
+    TODO
 
 def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, max_nbr_num=12, processes=24):
     pool = multiprocessing.Pool(processes=processes)
