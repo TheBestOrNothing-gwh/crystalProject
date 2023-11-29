@@ -1,5 +1,6 @@
 import numpy as np
 from collections import Counter
+import os
 
 from pymatgen.core.structure import Structure
 from yaff import System, log
@@ -49,7 +50,7 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
         system.detect_bonds()
     # 合法性检查
     assert check_period_connection(system), "错误的周期性边界条件导致晶格间不连通"
-    assert check_valence, "结构中存在错误的化合价，如氢原子形成了两个键等"
+    assert check_valence(system), "结构中存在错误的化合价，如氢原子形成了两个键等"
     check_result, system = check_isolated(system)
     pos = system.pos
     assert check_result, "结构中存在游离的片段"
@@ -231,14 +232,14 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
 
 
 if __name__ == "__main__":
-    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/cofs_Methane/error/linker100_NH_linker7_CH2_ukg_relaxed.cif",
-                               use_bond_types=True,
-                               bond_types=["amine"],
-                               linker_types=[])
-    print(-1 in data["atom_graph"]["offsets"])
-    print(data["cluster_graph"]["inter"])
-    print(data["cluster_graph"]["edges"])
-    print(data["cluster_graph"]["offsets"])
-    print(data["underling_network"]["edges"])
-    print(data["underling_network"]["pos"])
-    print(data["underling_network"]["offsets"])
+    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/cofs_Methane/error/linker97_C_linker98_C_ssd_relaxed.cif",
+                            use_bond_types=False,
+                            bond_types=["CC"],
+                            linker_types=["linker97", "linker98"])
+    # print(-1 in data["atom_graph"]["offsets"])
+    # print(data["cluster_graph"]["inter"])
+    # print(data["cluster_graph"]["edges"])
+    # print(data["cluster_graph"]["offsets"])
+    # print(data["underling_network"]["edges"])
+    # print(data["underling_network"]["pos"])
+    # print(data["underling_network"]["offsets"])

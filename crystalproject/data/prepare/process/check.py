@@ -17,11 +17,11 @@ def check_valence(system):
         match system.numbers[i]:
             case 1:
                 # H
-                if graph.neighbors[i] > 1:
+                if len(graph.neighbors[i]) > 1:
                     return False
             case 6:
                 # C
-                if graph.neighbors[i] > 4:
+                if len(graph.neighbors[i]) > 4:
                     return False
             case _:
                 continue
