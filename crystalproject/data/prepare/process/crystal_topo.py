@@ -229,7 +229,7 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
 
 
 if __name__ == "__main__":
-    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/cofs_Methane/error/linker97_C_linker98_C_ssd_relaxed.cif",
+    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/cofs_Methane/structures_primitive/linker98_CH_linker98_N_ssd_relaxed_interp_2.cif",
                             use_bond_types=False,
                             bond_types=["CC"],
                             linker_types=["linker97", "linker98"])
