@@ -7,7 +7,7 @@ from molmod import MolecularGraph
 from crystalproject.data.prepare.process.graph_match import get_isolated_parts
 
 
-def check_valence(system):
+def check_valence(system, name):
     """
     H最多只有一个邻居
     C最多四个邻居
@@ -17,17 +17,20 @@ def check_valence(system):
         match system.numbers[i]:
             case 1:
                 # H
-                if len(graph.neighbors[i]) > 1:
-                    return False
+                assert len(graph.neighbors[i]) <= 1, f"H原子形成了超过1个键: {name}"
+            case 5:
+                # N
+                assert len(graph.neighbors[i]) <= 3, f"N原子形成了超过3个键: {name}"
             case 6:
                 # C
-                if len(graph.neighbors[i]) > 4:
-                    return False
+                assert len(graph.neighbors[i]) <= 4, f"C原子形成了超过4个键: {name}"
+            case 8:
+                # O
+                assert len(graph.neighbors[i]) <= 2, f"O原子形成了超过2个键: {name}"
             case _:
                 continue
-    return True
 
-def check_isolated(system, threshold = 12):
+def check_isolated(system, name, threshold = 12):
     '''
     threshold: if an isolated part has less than this number of atoms, it considered
     as an isolated molecule and removed. If it is larger than this, it is considered
@@ -47,9 +50,9 @@ def check_isolated(system, threshold = 12):
                     mask[k] = False
     indices = np.array([i for i in range(system.natom)])[mask]
     system = system.subsystem(indices)
-    return all(mask), system
+    assert all(mask), f"结构中存在游离的部分: {name}"
 
-def check_period_connection(system):
+def check_period_connection(system, name):
     """
     检查是否存在offset不为零的边
     """
@@ -63,4 +66,4 @@ def check_period_connection(system):
         if not all(np.isclose(offset, 0, rtol=1e-5)):
             # 存在连接不同晶格原子的化学键
             flag = True
-    return flag
+    assert flag, f"结构不连续: {name}"

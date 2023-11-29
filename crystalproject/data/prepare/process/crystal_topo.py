@@ -1,5 +1,4 @@
 import numpy as np
-from collections import Counter
 import os
 
 from pymatgen.core.structure import Structure
@@ -49,12 +48,9 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
     if system.bonds is None:
         system.detect_bonds()
     # 合法性检查
-    assert check_period_connection(system), "错误的周期性边界条件导致晶格间不连通"
-    assert check_valence(system), "结构中存在错误的化合价，如氢原子形成了两个键等"
-    check_result, system = check_isolated(system)
-    pos = system.pos
-    assert check_result, "结构中存在游离的片段"
-
+    check_period_connection(system, os.path.basename(cif_path).split(".")[0])
+    check_valence(system, os.path.basename(cif_path).split(".")[0])
+    check_isolated(system, os.path.basename(cif_path).split(".")[0])
     # region 计算原子半径图
     sources, targets, offsets, distances = structure.get_neighbor_list(r=radius)
     sources_2, targets_2, offsets_2 = [], [], []

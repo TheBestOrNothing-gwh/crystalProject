@@ -1,4 +1,5 @@
 import numpy as np
+import os
 
 from pymatgen.core.structure import Structure
 from yaff import System, log
@@ -102,10 +103,9 @@ def create_crystal_RACs(cif_path, is_mean=True, use_bond_types=False, bond_types
     if system.bonds is None:
         system.detect_bonds()
     # 合法性检查
-    assert check_period_connection(system), "错误的周期性边界条件导致晶格间不连通"
-    assert check_valence(system), "结构中存在错误的化合价，如氢原子形成了两个键等"
-    check_result, system = check_isolated(system)
-    assert check_result, "结构中存在游离的片段"
+    check_period_connection(system, os.path.basename(cif_path).split(".")[0])
+    check_valence(system, os.path.basename(cif_path).split(".")[0])
+    check_isolated(system, os.path.basename(cif_path).split(".")[0])
     # 计算RACs
     racs = {}
     for name, graph, start, scope in iter_graphs(system, use_bond_types, bond_types, linker_types):
