@@ -229,10 +229,10 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
 
 
 if __name__ == "__main__":
-    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/cofs_Methane/structures_primitive/linker98_CH_linker98_N_ssd_relaxed_interp_2.cif",
-                            use_bond_types=False,
-                            bond_types=["CC"],
-                            linker_types=["linker97", "linker98"])
+    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/cofs_Methane/error/linker110_CO_linker74_NH_lcv_relaxed.cif",
+                            use_bond_types=True,
+                            bond_types=["amide"],
+                            linker_types=[])
     # print(-1 in data["atom_graph"]["offsets"])
     # print(data["cluster_graph"]["inter"])
     # print(data["cluster_graph"]["edges"])
