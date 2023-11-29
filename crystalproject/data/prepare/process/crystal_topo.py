@@ -1,4 +1,5 @@
 import numpy as np
+from collections import Counter
 import os
 
 from pymatgen.core.structure import Structure
