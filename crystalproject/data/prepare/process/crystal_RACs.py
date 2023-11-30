@@ -43,7 +43,7 @@ def iter_graphs(system, use_bond_types=False, bond_types=[], linker_types=[]):
     yield 'LinkerConnectingRAC', linker_graph, connecting, linkers
     yield 'FunctionalGroupRAC', linker_graph, functional, linkers
 
-def compute_racs(system, graph, start, scope, is_mean=True):
+def compute_racs(system, graph, start, scope):
     props = ['I', 'T', 'X', 'S', 'Z', 'a']
     result = {}
     for d in range(4):
@@ -84,12 +84,10 @@ def compute_racs(system, graph, start, scope, is_mean=True):
                 result['_'.join(['diff', prop, str(d)])] += float(prop_i - prop_j)
                 result['_'.join(['prod', prop, str(d)])] += float(prop_i*prop_j)
     result = np.array(list(result.values()))
-    if is_mean:
-        result = result / len(start)
-    return result
+    return result / len(start), result
 
 
-def create_crystal_RACs(cif_path, is_mean=True, use_bond_types=False, bond_types=[], linker_types=[]):
+def create_crystal_RACs(cif_path, use_bond_types=False, bond_types=[], linker_types=[]):
     structure = Structure.from_file(cif_path)
     rvecs = structure.lattice._matrix
     numbers = np.array(structure.atomic_numbers)
@@ -109,5 +107,5 @@ def create_crystal_RACs(cif_path, is_mean=True, use_bond_types=False, bond_types
     # 计算RACs
     racs = {}
     for name, graph, start, scope in iter_graphs(system, use_bond_types, bond_types, linker_types):
-        racs[name] = compute_racs(system, graph, start,scope, is_mean)
+        racs[name+"_mean"], racs[name+"_sum"] = compute_racs(system, graph, start, scope)
     return racs

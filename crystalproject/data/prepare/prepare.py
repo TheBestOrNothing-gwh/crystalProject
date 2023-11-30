@@ -3,7 +3,7 @@ import pandas as pd
 from tqdm import tqdm
 import shutil
 import pickle
-import multiprocessing
+from multiprocessing import Pool, Manager
 import json
 
 from crystalproject.data.prepare.process.crystal_topo import create_crystal_topo
@@ -14,13 +14,14 @@ def err_call_back(err):
     print(f'出错啦~ error:{str(err)}')
 
 
-def func_simple(root_dir, target_dir, id):
+def func_simple(root_dir, target_dir, row, all_list):
     shutil.copy(
-            os.path.join(root_dir, id+".cif"),
-            os.path.join(target_dir, id+".cif")
+            os.path.join(root_dir, row["name"]+".cif"),
+            os.path.join(target_dir, row["name"]+".cif")
         )
+    all_list.append({"name": row["name"]})
 
-def func_topo(root_dir, target_dir, row, radius=5.0, max_nbr_num=12):
+def func_topo(root_dir, target_dir, row, all_list, radius=5.0, max_nbr_num=12):
     if os.path.exists(os.path.join(target_dir, row["name"]+".pkl")):
         return 
     process_data = create_crystal_topo(
@@ -37,26 +38,22 @@ def func_topo(root_dir, target_dir, row, radius=5.0, max_nbr_num=12):
     )
     pickle.dump(process_data, f_save)
     f_save.close()
+    all_list.append({"name": row["name"]})
 
-def func_RACs(root_dir, target_dir, row, is_mean):
-    if os.path.exists(os.path.join(target_dir, row["name"]+".json")):
-        return
+def func_RACs(root_dir, row, all_list):
     process_data = create_crystal_RACs(
         os.path.join(root_dir, row["name"]+".cif"),
-        is_mean,
         row["use_bond_types"],
         row["bond_types"],
         row["linker_types"],
     )
-    f_save = open(
-        os.path.join(target_dir, row["name"]+"json"),
-        "wb"
-    )
-    f_save.write(json.dumps(process_data))
-    f_save.close()
+    process_data["name"] = row["name"]
+    all_list.append(process_data)
 
-def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, max_nbr_num=12, processes=24, is_mean=True):
-    pool = multiprocessing.Pool(processes=processes)
+def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, max_nbr_num=12, processes=24):
+    pool = Pool(processes=processes)
+    manager = Manager()
+    all_list = manager.list()
     pbar = tqdm(total=len(datas))
     pbar.set_description("process data")
     update = lambda *args: pbar.update()
@@ -65,7 +62,7 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, ma
             for _, row in datas.iterrows():
                 pool.apply_async(
                     func_simple,
-                    (root_dir, target_dir, row["name"]),
+                    (root_dir, os.path.join(target_dir, "all"), row, all_list),
                     callback=update,
                     error_callback=err_call_back
                 )
@@ -73,7 +70,7 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, ma
             for _, row in datas.iterrows():
                 pool.apply_async(
                     func_topo,
-                    (root_dir, target_dir, row, radius, max_nbr_num),
+                    (root_dir, os.path.join(target_dir, "all"), row, all_list, radius, max_nbr_num),
                     callback=update,
                     error_callback=err_call_back
                 )
@@ -81,7 +78,7 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, ma
             for _, row in datas.iterrows():
                 pool.apply_async(
                     func_RACs,
-                    (root_dir, target_dir, row, is_mean),
+                    (root_dir, row, all_list),
                     callback=update,
                     error_callback=err_call_back
                 )
@@ -89,9 +86,7 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, ma
             print("No such data format.")
     pool.close()
     pool.join()
-    files = os.listdir(target_dir)
-    files = [file.split(".")[0] for file in files]
-    datas = datas[datas["name"].isin(files)]
+    datas = pd.DataFrame(all_list)
     return datas
 
 
@@ -99,11 +94,18 @@ def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", ra
     with open(os.path.join(root_dir, "id_prop.json")) as f:
         datas = json.load(f)
     datas = pd.json_normalize(datas)
-    # 进行数据处理，并返回处理完后所有剩余的部分
+    # 进行数据处理，并返回正确处理的部分
     if not os.path.exists(os.path.join(target_dir, "all")):
         os.makedirs(os.path.join(target_dir, "all"))
-    datas = pre_control(root_dir, os.path.join(target_dir, "all"), datas.iloc[:, :],
+    new_datas = pre_control(root_dir, target_dir, datas.iloc[:, :],
                 stage=stage, radius=radius, processes=processes)
+    # 是否做过预处理了，决定datas是否更新
+    if os.path.exists(os.path.join(target_dir, "id_prop_all.json")):
+        with open(os.path.join(target_dir, "id_prop_all.json")) as f:
+            datas = json.load(f)
+        datas = pd.json_normalize(datas)
+    # 通过内连接保留这次正确处理以及之前预处理正确的共同部分
+    datas = pd.merge(datas, new_datas, how="inner", on="name")
     datas.to_json(os.path.join(target_dir, "id_prop_all.json"), orient="records", force_ascii=True, indent=4)
     if len(split) != 0:
         assert (
