@@ -4,6 +4,7 @@ from itertools import combinations
 from matplotlib import pyplot as plt
 from matplotlib.colors import Normalize
 import matplotlib.ticker as mticker
+import seaborn as sns
 from ase.data import covalent_radii
 from crystalproject.assets.colors import cpk_colors
 from crystalproject.visualize.utils import plot_cube
@@ -118,3 +119,31 @@ def draw_heatmap_graph(ax, atoms, uni_idx, colors, atomic_scale, alpha):
             linewidth=0,
             alpha=alpha,
         )
+
+def draw_compare_heatmap(x, y, x_label, y_label, addition):
+    # 绘制散点密度图
+    jointplot = sns.jointplot(x=x, y=y, kind="hex")
+    ax = jointplot.ax_joint
+    # 添加label
+    ax.set_xlabel(x_label, fontsize=18, fontfamily="sans-serif", fontstyle="italic")
+    ax.set_ylabel(y_label, fontsize=18, fontfamily="sans-serif", fontstyle="italic")
+    # 添加对角直线
+    Axis_line = np.linspace(*ax.get_xlim(), 2)
+    ax.plot(Axis_line, Axis_line, transform=ax.transAxes, linestyle="--", linewidth=2, color="black")
+    # 添加附加信息，最左上角添加说明
+    ax.text(
+        ax.get_xlim()[0] * 0.95 + ax.get_xlim()[1] * 0.05, 
+        ax.get_ylim()[0] * 0.2 + ax.get_ylim()[1] * 0.8, 
+        addition, 
+        fontsize=18, 
+        fontfamily="sans-serif",
+        fontstyle="italic",
+        bbox={
+            "boxstyle": "round",
+            "facecolor": "white",
+            "edgecolor": "gray",
+            "alpha": 0.7
+        }
+    )
+    return jointplot
+    
