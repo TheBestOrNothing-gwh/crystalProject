@@ -17,16 +17,20 @@ def check_valence(system, name):
         match system.numbers[i]:
             case 1:
                 # H
-                assert len(graph.neighbors[i]) <= 1, f"H原子形成了超过1个键: {name}"
+                if not len(graph.neighbors[i]) <= 1:
+                    raise RuntimeError(f"H原子形成了超过1个键: {name}")
             case 5:
                 # N
-                assert len(graph.neighbors[i]) <= 3, f"N原子形成了超过3个键: {name}"
+                if not len(graph.neighbors[i]) <= 3:
+                    raise RuntimeError(f"N原子形成了超过3个键: {name}")
             case 6:
                 # C
-                assert len(graph.neighbors[i]) <= 4, f"C原子形成了超过4个键: {name}"
+                if not len(graph.neighbors[i]) <= 4:
+                    raise RuntimeError(f"C原子形成了超过4个键: {name}")
             case 8:
                 # O
-                assert len(graph.neighbors[i]) <= 2, f"O原子形成了超过2个键: {name}"
+                if not len(graph.neighbors[i]) <= 2:
+                    raise RuntimeError(f"O原子形成了超过2个键: {name}")
             case _:
                 continue
 
@@ -50,7 +54,8 @@ def check_isolated(system, name, threshold = 12):
                     mask[k] = False
     indices = np.array([i for i in range(system.natom)])[mask]
     system = system.subsystem(indices)
-    assert all(mask), f"结构中存在游离的部分: {name}"
+    if not all(mask):
+        raise RuntimeError(f"结构中存在游离的部分: {name}")
 
 def check_period_connection(system, name):
     """
@@ -66,4 +71,5 @@ def check_period_connection(system, name):
         if not all(np.isclose(offset, 0, rtol=1e-5)):
             # 存在连接不同晶格原子的化学键
             flag = True
-    assert flag, f"结构不连续: {name}"
+    if not flag:
+        raise RuntimeError(f"结构不连续: {name}")

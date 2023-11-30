@@ -5,7 +5,7 @@ from pymatgen.core.structure import Structure
 from yaff import System, log
 log.set_level(0)
 from yaff.pes.ext import Cell
-from molmod import MolecularGraph
+from molmod import MolecularGraph, GraphError
 from molmod.periodic import periodic as pt
 from molmod.units import angstrom
 
@@ -24,21 +24,25 @@ def iter_graphs(system, use_bond_types=False, bond_types=[], linker_types=[]):
     _, linkages_bonds = get_bond_linkages(sub_graph, use_bond_types, linker_types)
     for bond in linkages_bonds:
         graph_edges.remove(bond)
+    if len(ligands) == 0 and len(linkages_bonds) == 0:
+        raise RuntimeError("没有识别到任何反应位点")
     linker_graph = MolecularGraph(graph_edges, system.numbers)
-    linkers = [i for i in range(graph.num_vertices) if i not in ligands]
-    connecting = [i for i in linkers if not len(graph.neighbors[i]) == len(linker_graph.neighbors[i])]
+    linkers = set([i for i in range(graph.num_vertices) if i not in ligands])
+    connecting = set([i for i in linkers if not len(graph.neighbors[i]) == len(linker_graph.neighbors[i])])
     functional = set([])
     for i0, i1 in linker_graph.edges:
-        part0, part1 = graph.get_halfs(i0, i1)
+        try:
+            part0, part1 = graph.get_halfs(i0, i1)
+        except GraphError as err:
+            continue
         if any([index in connecting for index in part0]):
             functional_part = list(part1)
         elif any([index in connecting for index in part1]):
             functional_part = list(part0)
         if len(functional_part) == 1 and graph.numbers[functional_part[0]] == 1: continue
         functional.update(functional_part)
-    functional = list(functional)
     
-    yield 'LigandRAC', graph, ligands, [i for i in range(graph.num_vertices)]
+    yield 'LigandRAC', graph, ligands, set([i for i in range(graph.num_vertices)])
     yield 'FullLinkerRAC', linker_graph, linkers, linkers
     yield 'LinkerConnectingRAC', linker_graph, connecting, linkers
     yield 'FunctionalGroupRAC', linker_graph, functional, linkers
@@ -50,6 +54,9 @@ def compute_racs(system, graph, start, scope):
         for prop in props:
             for method in ['prod', 'diff']:
                 result['_'.join([method, prop, str(d)])] = 0.0
+    if len(start) == 0:
+        result = np.array(list(result.values()))
+        return result, result
     for i in start:
         for j, d in graph.iter_breadth_first(start = i):
             if d == 4: break

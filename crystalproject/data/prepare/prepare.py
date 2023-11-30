@@ -23,7 +23,8 @@ def func_simple(root_dir, target_dir, row, all_list):
 
 def func_topo(root_dir, target_dir, row, all_list, radius=5.0, max_nbr_num=12):
     if os.path.exists(os.path.join(target_dir, row["name"]+".pkl")):
-        return 
+        all_list.append({"name": row["name"]})
+        return
     process_data = create_crystal_topo(
         os.path.join(root_dir, row["name"]+".cif"),
         radius,
@@ -86,7 +87,8 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, ma
             print("No such data format.")
     pool.close()
     pool.join()
-    datas = pd.DataFrame(all_list)
+    # 需要转换普通的list
+    datas = pd.DataFrame(list(all_list))
     return datas
 
 

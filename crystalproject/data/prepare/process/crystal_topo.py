@@ -25,6 +25,8 @@ def divide_graphs(system, use_bond_types=False, bond_types=[], linker_types=[]):
     bond_linkages, linkages_bonds = get_bond_linkages(sub_graph, use_bond_types, linker_types)
     for bond in linkages_bonds:
         graph_edges.remove(bond)
+    if len(linkages_indices) == 0 and len(linkages_bonds) == 0:
+        raise RuntimeError("没有识别到任何反应位点")
     linker_graph = MolecularGraph(graph_edges, system.numbers)
     linkers = get_isolated_partitions(linker_graph)
     # 做完划分
