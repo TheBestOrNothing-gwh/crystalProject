@@ -5,8 +5,9 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, r2_score
 from scipy.stats import spearmanr
 import numpy as np
-import os
 import json
+
+from crystalproject.visualize.drawer import draw_compare_heatmap
 
 
 # Settings
@@ -17,9 +18,22 @@ test_size = 0.2
 seed = 123
 
 # descriptor
-descriptor_index = ["LigandRAC_mean", "LigandRAC_sum"]
+descriptor_index = {
+        "Geo": [
+                "density [kg\/m^3]",
+                "largest included sphere diameter [A]",
+                "largest free sphere diameter [A]",
+                "largest included sphere along free sphere path diameter [A]",
+                "void fraction [widom]",
+                
+        ],
+        "Chem(aver)": [],
+        "Chem(sum)": [],
+        "Geo & Chem(aver)": [],
+        "Geo & Chem(sum)": [],
+}
 # target
-target_index = []
+target_index = ["absolute methane uptake low P [v STP\/v]", "absolute methane uptake high P [v STP\/v]"]
 
 # read in data
 dataPath = "/home/gwh/project/crystalProject/DATA/cofs_Methane/process/id_prop_all.json"
@@ -30,6 +44,8 @@ print(len(datas))
 train_set, test_set = train_test_split(
         datas, test_size=test_size, shuffle=True, random_state=seed
 )
+
+for 
 X_train = np.concatenate([np.array(train_set.loc[:, index].tolist()) for index in descriptor_index], axis=1)
 X_test = np.concatenate([np.array(test_set.loc[:, index].tolist()) for index in descriptor_index], axis=1)
 
@@ -47,3 +63,4 @@ y_train_pred = krr.predict(X_train)
 y_test_pred = krr.predict(X_test)
 
 # 可视化展示
+jointplot = draw_compare_heatmap(y_test, y_test_pred, )
