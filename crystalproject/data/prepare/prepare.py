@@ -125,6 +125,25 @@ def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", ra
         val_datas.to_json(os.path.join(target_dir, "id_prop_val.json"), orient="records", force_ascii=True, indent=4)
         test_datas.to_json(os.path.join(target_dir, "id_prop_test.json"), orient="records", force_ascii=True, indent=4)
 
+def split(target_dir, split=[0.8, 0.1, 0.1]):
+    assert (
+            abs(split[0] + split[1] + split[2] - 1) <= 1e-5
+        ), "train + val + test == 1"
+    # random.seed(2023)
+    # 设置好pandas的随机数，让每一次划分数据集都是相同的
+    with open(os.path.join(target_dir, "id_prop_all.json")) as f:
+        datas = json.load(f)
+    datas = pd.json_normalize(datas)
+    datas = datas.sample(frac=1.0)
+    # 划分数据集
+    split_index_1, split_index_2 = int(datas.shape[0] * split[0]), int(datas.shape[0] * (split[0] + split[1]))
+    train_datas = datas.iloc[:split_index_1, :]
+    val_datas = datas.iloc[split_index_1:split_index_2, :]
+    test_datas = datas.iloc[split_index_2:, :]
+    train_datas.to_json(os.path.join(target_dir, "id_prop_train.json"), orient="records", force_ascii=True, indent=4)
+    val_datas.to_json(os.path.join(target_dir, "id_prop_val.json"), orient="records", force_ascii=True, indent=4)
+    test_datas.to_json(os.path.join(target_dir, "id_prop_test.json"), orient="records", force_ascii=True, indent=4)
+
 
 if __name__ == "__main__":
     prepare_data(
