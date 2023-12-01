@@ -9,6 +9,8 @@ from ase.data import covalent_radii
 from crystalproject.assets.colors import cpk_colors
 from crystalproject.visualize.utils import plot_cube
 
+from crystalproject.visualize.setting import get_fig_ax
+
 
 def draw_colorbar(fig, ax, cmap, minatt, maxatt, **cbar_kwargs):
     norm = Normalize(0.0, 1.0)
@@ -74,8 +76,8 @@ def draw_atoms(ax, atoms, atomic_scale=1):
     :param atoms: <ase.p_atoms> Target p_atoms for drawing
     :param atomic_scale: <float> scaling factor for draw_atoms.
     """
-    coords = atoms.get_positions()
-    atomic_numbers = atoms.get_atomic_numbers()
+    coords = atoms["pos"]
+    atomic_numbers = atoms["numbers"]
     atomic_sizes = np.array([covalent_radii[i] for i in atomic_numbers])
     atomic_colors = np.array([cpk_colors[i] for i in atomic_numbers])
     ax.scatter(
@@ -89,7 +91,7 @@ def draw_atoms(ax, atoms, atomic_scale=1):
         linewidths=0.8,
         alpha=1.0,
     )
-
+    
 
 def draw_heatmap_grid(ax, positions, colors, lattice, num_patches, alpha=0.5, **kwargs):
     cubes = plot_cube(
@@ -121,22 +123,25 @@ def draw_heatmap_graph(ax, atoms, uni_idx, colors, atomic_scale, alpha):
         )
 
 
-def draw_compare_heatmap(x, y, x_label, y_label, addition):
-    # 绘制散点密度图
-    jointplot = sns.jointplot(x=x, y=y, kind="hex")
-    ax = jointplot.ax_joint
+def draw_compare(fig, ax, x, y, x_label, y_label, addition, title):
+    # 绘制 hex bin
+    hb = ax.hexbin(x, y, gridsize=50, bins='log', cmap="BuGn")
+    # 添加colorbar
+    fig.colorbar(hb, ax=ax, label="log10(N)")
+    # 添加title
+    ax.set_title(title, fontsize=18, fontfamily="sans-serif", fontstyle="italic")
     # 添加label
-    ax.set_xlabel(x_label, fontsize=18, fontfamily="sans-serif", fontstyle="italic")
-    ax.set_ylabel(y_label, fontsize=18, fontfamily="sans-serif", fontstyle="italic")
+    ax.set_xlabel(x_label, fontsize=12, fontfamily="sans-serif", fontstyle="italic")
+    ax.set_ylabel(y_label, fontsize=12, fontfamily="sans-serif", fontstyle="italic")
     # 添加对角直线
     Axis_line = np.linspace(*ax.get_xlim(), 2)
-    ax.plot(Axis_line, Axis_line, transform=ax.transAxes, linestyle="--", linewidth=2, color="black")
+    ax.plot(Axis_line, Axis_line, transform=ax.transAxes, linestyle="--", linewidth=1, color="red")
     # 添加附加信息，最左上角添加说明
     ax.text(
         ax.get_xlim()[0] * 0.95 + ax.get_xlim()[1] * 0.05, 
         ax.get_ylim()[0] * 0.2 + ax.get_ylim()[1] * 0.8, 
         addition, 
-        fontsize=18, 
+        fontsize=12, 
         fontfamily="sans-serif",
         fontstyle="italic",
         bbox={
@@ -146,5 +151,34 @@ def draw_compare_heatmap(x, y, x_label, y_label, addition):
             "alpha": 0.7
         }
     )
-    return jointplot
+
+def draw_topo(ax, topo):
+    # 画出晶格
+    draw_cell(ax, topo["atom_graph"]["rvecs"], color="black")
+    # 画出原子图
+    draw_atoms(ax, topo["atom_graph"])
+    for i, (pos1, pos2) in enumerate(topo["atom_graph"]["pos"][topo["atom_graph"]["edges"].T]):
+        offset = topo["atom_graph"]["offsets"][i]
+        offset_real = topo["atom_graph"]["offsets_real"][i]
+        if any(offset != 0.):
+            draw_line(ax, pos1, pos2+offset_real, color="black", linewidth=0.5, alpha=0.2)
+        else:
+            draw_line(ax, pos1, pos2, color="black", linewidth=0.5, alpha=0.2)
+    # 画出拓扑图
+    ax.scatter(
+        xs=topo["underling_network"]["pos"][:, 0],
+        ys=topo["underling_network"]["pos"][:, 1],
+        zs=topo["underling_network"]["pos"][:, 2],
+        c="grey",
+        s=10.,
+        alpha=0.3
+    )
+    for i, (pos1, pos2) in enumerate(topo["underling_network"]["pos"][topo["underling_network"]["edges"].T]):
+        offset = topo["underling_network"]["offsets"][i]
+        offset_real = topo["underling_network"]["offsets_real"][i]
+        if any(offset != 0.):
+            draw_line(ax, pos1, pos2+offset_real, color="red", linestyle="--", linewidth=3, alpha=0.2)
+        else:
+            draw_line(ax, pos1, pos2, color="red", linestyle="-", linewidth=3, alpha=0.2)
     
+
