@@ -156,22 +156,22 @@ def draw_topo(ax, topo):
     # 画出晶格
     draw_cell(ax, topo["atom_graph"]["rvecs"], color="black")
     # 画出原子图
-    draw_atoms(ax, topo["atom_graph"])
+    draw_atoms(ax, topo["atom_graph"], atomic_scale=25)
     for i, (pos1, pos2) in enumerate(topo["atom_graph"]["pos"][topo["atom_graph"]["edges"].T]):
         offset = topo["atom_graph"]["offsets"][i]
         offset_real = topo["atom_graph"]["offsets_real"][i]
         if any(offset != 0.):
             draw_line(ax, pos1, pos2+offset_real, color="black", linewidth=0.5, alpha=0.2)
         else:
-            draw_line(ax, pos1, pos2, color="black", linewidth=0.5, alpha=0.2)
+            draw_line(ax, pos1, pos2, color="black", linewidth=0.5, alpha=0.1)
     # 画出拓扑图
     ax.scatter(
         xs=topo["underling_network"]["pos"][:, 0],
         ys=topo["underling_network"]["pos"][:, 1],
         zs=topo["underling_network"]["pos"][:, 2],
-        c="grey",
-        s=10.,
-        alpha=0.3
+        c="darkblue",
+        s=500.,
+        alpha=0.2
     )
     for i, (pos1, pos2) in enumerate(topo["underling_network"]["pos"][topo["underling_network"]["edges"].T]):
         offset = topo["underling_network"]["offsets"][i]
@@ -179,6 +179,5 @@ def draw_topo(ax, topo):
         if any(offset != 0.):
             draw_line(ax, pos1, pos2+offset_real, color="red", linestyle="--", linewidth=3, alpha=0.2)
         else:
-            draw_line(ax, pos1, pos2, color="red", linestyle="-", linewidth=3, alpha=0.2)
-    
+            draw_line(ax, pos1, pos2, color="red", linestyle="-", linewidth=3, alpha=0.2)    
 

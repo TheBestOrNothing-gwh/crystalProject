@@ -45,8 +45,8 @@ def fun_krr(alpha, gamma, kernel, X_train, X_test, y_train, y_test, target_index
     fig, ax = plt.subplots()
     addition = "\n".join(
         [
-            f"MAE = {mean_absolute_error(y_test, y_test_pred)}",
-            f"R2 = {r2_score(y_test, y_test_pred)}",
+            f"MAE = {round(mean_absolute_error(y_test, y_test_pred), 2)}",
+            f"R2 = {round(r2_score(y_test, y_test_pred), 2)}",
             # f"rho = {spearmanr(y_test, y_test_pred)[0]}"
         ]
     )
