@@ -13,36 +13,6 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from pymatgen.io.cif import CifParser
 from pymatgen.io.ase import AseAtomsAdaptor
 import torch
-# import pytorch_lightning as pl
-# from moftransformer.modules.module import Module
-# from moftransformer.datamodules.datamodule import Datamodule
-# from moftransformer.config import config
-
-
-# @lru_cache
-# def get_model_and_datamodule(model_path, data_root, downstream=""):
-#     _config = config()
-#     _config["visualize"] = True
-#     _config["per_gpu_batchsize"] = 1
-#     _config["data_root"] = data_root
-#     _config["root_dataset"] = data_root
-#     _config["load_path"] = model_path
-#     _config["test_only"] = True
-#     _config["use_transformer"] = True
-#     _config["log_dir"] = "result_visualization"
-#     _config["downstream"] = downstream
-
-#     pl.seed_everything(_config["seed"])
-#     model = Module(_config)
-#     model.setup("test")
-#     model.eval()
-#     model.to("cpu")
-
-#     dm = Datamodule(_config)
-#     dm.setup("test")
-#     data_iter = dm.test_dataloader()
-
-#     return model, data_iter
 
 
 @lru_cache

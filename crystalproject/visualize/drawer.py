@@ -6,9 +6,10 @@ from matplotlib.colors import Normalize
 import matplotlib.ticker as mticker
 import seaborn as sns
 from ase.data import covalent_radii
+from molmod.units import angstrom
+
 from crystalproject.assets.colors import cpk_colors
 from crystalproject.visualize.utils import plot_cube
-
 from crystalproject.visualize.setting import get_fig_ax
 
 
@@ -69,7 +70,7 @@ def draw_cell(ax, lattice, s_point=None, **kwargs):
         draw_line(ax, s_point + v1 + v2, opp_vec, **kwargs)
 
 
-def draw_atoms(ax, atoms, atomic_scale=1):
+def draw_atoms(ax, atoms):
     """
     Draw p_atoms using matplotlib
     :param ax: <matplotlib.axes> figure axis
@@ -78,14 +79,14 @@ def draw_atoms(ax, atoms, atomic_scale=1):
     """
     coords = atoms["pos"]
     atomic_numbers = atoms["numbers"]
-    atomic_sizes = np.array([covalent_radii[i] for i in atomic_numbers])
+    atomic_sizes = np.array([covalent_radii[i] for i in atomic_numbers]) * angstrom
     atomic_colors = np.array([cpk_colors[i] for i in atomic_numbers])
     ax.scatter(
         xs=coords[:, 0],
         ys=coords[:, 1],
         zs=coords[:, 2],
         c=atomic_colors,
-        s=atomic_sizes * atomic_scale,
+        s=atomic_sizes,
         marker="o",
         edgecolor="black",
         linewidths=0.8,
