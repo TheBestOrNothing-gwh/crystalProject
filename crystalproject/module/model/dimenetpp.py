@@ -3,7 +3,6 @@ from torch import nn
 from torch.nn import Linear, Embedding
 from torch_geometric.nn.inits import glorot_orthogonal 
 from torch_scatter import scatter
-from math import sqrt
 
 from crystalproject.module.utils.geometric_computing import crystal_to_dat
 from crystalproject.module.utils.features import dist_emb, angle_emb
@@ -51,19 +50,18 @@ class init(torch.nn.Module):
     def __init__(self, num_radial, hidden_channels, act=swish):
         super(init, self).__init__()
         self.act = act
-        self.emb = Embedding(95, hidden_channels)
         self.lin_rbf_0 = Linear(num_radial, hidden_channels)
         self.lin = Linear(3 * hidden_channels, hidden_channels)
         self.lin_rbf_1 = nn.Linear(num_radial, hidden_channels, bias=False)
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.emb.weight.data.uniform_(-sqrt(3), sqrt(3))
         self.lin_rbf_0.reset_parameters()
         self.lin.reset_parameters()
         glorot_orthogonal(self.lin_rbf_1.weight, scale=2.0)
 
-    def forward(self, x, emb, i, j):
+    def forward(self, x, emb, edge_index):
+        j, i = edge_index
         rbf,_ = emb
         x = self.emb(x)
         rbf0 = self.act(self.lin_rbf_0(rbf))
@@ -125,7 +123,8 @@ class update_e(torch.nn.Module):
 
         glorot_orthogonal(self.lin_rbf.weight, scale=2.0)
 
-    def forward(self, x, emb, idx_kj, idx_ji):
+    def forward(self, x, emb, triplet_index):
+        idx_kj, idx_ji = triplet_index
         rbf0, sbf = emb
         x1,_ = x
 
@@ -157,7 +156,7 @@ class update_e(torch.nn.Module):
 
 
 class update_v(torch.nn.Module):
-    def __init__(self, hidden_channels, out_emb_channels, out_channels, num_output_layers, act, output_init):
+    def __init__(self, hidden_channels, out_emb_channels, num_output_layers, act, output_init):
         super(update_v, self).__init__()
         self.act = act
         self.output_init = output_init
@@ -166,7 +165,6 @@ class update_v(torch.nn.Module):
         self.lins = torch.nn.ModuleList()
         for _ in range(num_output_layers):
             self.lins.append(nn.Linear(out_emb_channels, out_emb_channels))
-        self.lin = nn.Linear(out_emb_channels, out_channels, bias=False)
 
         self.reset_parameters()
 
@@ -175,10 +173,6 @@ class update_v(torch.nn.Module):
         for lin in self.lins:
             glorot_orthogonal(lin.weight, scale=2.0)
             lin.bias.data.fill_(0)
-        if self.output_init == 'zeros':
-            self.lin.weight.data.fill_(0)
-        if self.output_init == 'GlorotOrthogonal':
-            glorot_orthogonal(self.lin.weight, scale=2.0)
 
     def forward(self, e, i):
         _, e2 = e
@@ -186,7 +180,6 @@ class update_v(torch.nn.Module):
         v = self.lin_up(v)
         for lin in self.lins:
             v = self.act(lin(v))
-        v = self.lin(v)
         return v
 
 
@@ -200,7 +193,6 @@ class DimeNetPP(torch.nn.Module):
             cutoff (float, optional): Cutoff distance for interatomic interactions. (default: :obj:`5.0`)
             num_layers (int, optional): Number of building blocks. (default: :obj:`4`)
             hidden_channels (int, optional): Hidden embedding size. (default: :obj:`128`)
-            out_channels (int, optional): Size of each output sample. (default: :obj:`1`)
             int_emb_size (int, optional): Embedding size used for interaction triplets. (default: :obj:`64`)
             basis_emb_size (int, optional): Embedding size used in the basis transformation. (default: :obj:`8`)
             out_emb_channels (int, optional): Embedding size used for atoms in the output block. (default: :obj:`256`)
@@ -215,7 +207,7 @@ class DimeNetPP(torch.nn.Module):
     """
     def __init__(
         self, energy_and_force=False, cutoff=5.0, num_layers=4, 
-        hidden_channels=128, out_channels=1, int_emb_size=64, basis_emb_size=8, out_emb_channels=256, 
+        hidden_channels=128, int_emb_size=64, basis_emb_size=8, out_emb_channels=256, 
         num_spherical=7, num_radial=6, envelope_exponent=5, 
         num_before_skip=1, num_after_skip=2, num_output_layers=3, 
         act=swish, output_init='GlorotOrthogonal'):
@@ -225,12 +217,11 @@ class DimeNetPP(torch.nn.Module):
         self.energy_and_force = energy_and_force
 
         self.init_e = init(num_radial, hidden_channels, act)
-        self.init_v = update_v(hidden_channels, out_emb_channels, out_channels, num_output_layers, act, output_init)
-        self.init_u = update_u()
+        self.init_v = update_v(hidden_channels, out_emb_channels, num_output_layers, act, output_init)
         self.emb = emb(num_spherical, num_radial, self.cutoff, envelope_exponent)
         
         self.update_vs = torch.nn.ModuleList([
-            update_v(hidden_channels, out_emb_channels, out_channels, num_output_layers, act, output_init) for _ in range(num_layers)])
+            update_v(hidden_channels, out_emb_channels, num_output_layers, act, output_init) for _ in range(num_layers)])
 
         self.update_es = torch.nn.ModuleList([
             update_e(
@@ -241,8 +232,6 @@ class DimeNetPP(torch.nn.Module):
             )
             for _ in range(num_layers)
         ])
-
-        self.update_us = torch.nn.ModuleList([update_u() for _ in range(num_layers)])
 
         self.reset_parameters()
 
@@ -258,20 +247,18 @@ class DimeNetPP(torch.nn.Module):
 
     def forward(self, batch_data):
         v, pos, edges, offsets, offsets_real = batch_data["v"], batch_data["pos"], batch_data["edges"], batch_data["offsets"], batch_data["offsets_real"]
-        dist, edges_index, angle, triplets_index = crystal_to_dat(pos, edges, offsets, offsets_real)
+        dist, edge_index, angle, triplet_index = crystal_to_dat(pos, edges, offsets, offsets_real)
 
-        emb = self.emb(dist, angle, triplets_index[0])
+        emb = self.emb(dist, angle, triplet_index[0])
 
         #Initialize edge, node, graph features
-        e = self.init_e(z, emb, i, j)
-        v = self.init_v(e, i)
-        u = self.init_u(torch.zeros_like(scatter(v, batch, dim=0)), v, batch) #scatter(v, batch, dim=0)
-
-        for update_e, update_v, update_u in zip(self.update_es, self.update_vs, self.update_us):
-            e = update_e(e, emb, idx_kj, idx_ji)
-            v = update_v(e, i)
-            u = update_u(u, v, batch) #u += scatter(v, batch, dim=0)
-
-        return u
+        e = self.init_e(v, emb, edge_index)
+        v = self.init_v(e, edge_index[1])
+        
+        for update_e, update_v in zip(self.update_es, self.update_vs, self.update_us):
+            e = update_e(e, emb, triplet_index)
+            v = v + update_v(e, edge_index[1])
+            
+        return v
 
 
