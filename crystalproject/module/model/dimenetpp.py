@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torch.nn import Linear, Embedding
+from torch.nn import Linear
 from torch_geometric.nn.inits import glorot_orthogonal 
 from torch_scatter import scatter
 
