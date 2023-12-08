@@ -4,6 +4,7 @@ from torch.nn import Linear
 from torch_geometric.nn.inits import glorot_orthogonal 
 from torch_scatter import scatter
 
+from crystalproject.utils.registry import registry
 from crystalproject.module.utils.geometric_computing import crystal_to_dat
 from crystalproject.module.utils.features import dist_emb, angle_emb
 
@@ -182,6 +183,7 @@ class update_v(torch.nn.Module):
         return v
 
 
+@registry.register_model("dimenet++")
 class DimeNetPP(torch.nn.Module):
     r"""
         The re-implementation for DimeNet++ from the `"Fast and Uncertainty-Aware Directional Message Passing for Non-Equilibrium Molecules" <https://arxiv.org/abs/2011.14115>`_ paper

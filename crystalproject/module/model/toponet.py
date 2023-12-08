@@ -15,10 +15,10 @@ class TopoNet(nn.Module):
     def __init__(
         self,
         atom_embedding={},
-        atom_hidden_channels=64,
+        atom_hidden_channels=128,
         atom_graph={},
         atom_cluster_reduce="sum",
-        cluster_hidden_channels=128,
+        cluster_hidden_channels=256,
         cluster_graph={},
         cluster_network_reduce="sum",
         underling_network={},
