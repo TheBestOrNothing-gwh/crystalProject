@@ -28,7 +28,7 @@ module_config = {
             },
             "cluster_hidden_channels": 256,
             "cluster_graph":{
-                "name": "GCN",
+                "name": "gcn",
                 "kwargs":{
                     "num_layers": 2,
                 }
@@ -36,7 +36,7 @@ module_config = {
             "underling_network":{
                 "name": "cgcnn",
                 "kwargs":{
-                    "edges_embedding":{
+                    "edge_embedding":{
                         "dmin": 10.0,
                         "dmax": 20.0,
                         "step": 1.0,
@@ -70,28 +70,37 @@ module_config = {
     "loss":{
         "name": "mse",
     },
+    "criterion":{
+        "name": "mae",
+    },
     "normalize":{
         "mean": 0,
         "std": 1,
     }
-},
+}
 data_config = {
     "dataset":{
         "name": "CrystalTopoDataset",
         "kwargs":{
             "root_dir": "/home/gwh/project/crystalProject/DATA/cofs_Methane/process",
-            "target_index": ["absolute methane uptake high P [v STP/v]"]
+            "target_index": ["absolute methane uptake high P [v STP/v]"],
+            "descriptor_index": ["dimensions"]
         }
+    },
+    "dataloader":{
+        "batch_size": 4,
+        "num_workers": 1,
+        "pin_memory": True,
     }
-},
+}
 trainer_config = {
     "max_epochs": 500,
     "min_epochs": 100
-},
+}
 config = {
     "root_dir": "",
     "target": "CH4 High P"
-},
+}
 
 
 # 回调函数
@@ -112,9 +121,10 @@ model_checkpoint = ModelCheckpoint(
 # 主流程
 module = PreModule(**module_config)
 data_module = MapDataModule(**data_config)
-trainer = lp.Trainer(**trainer_config, callbacks=[early_stop, model_checkpoint], devices=[7])
+trainer = lp.Trainer(**trainer_config, callbacks=[early_stop, model_checkpoint], devices=[0])
 trainer.fit(module, data_module)
 save_path = trainer.default_root_dir
 config["root_dir"] = save_path
+print(save_path)
 trainer.test(module, data_module, config)
 
