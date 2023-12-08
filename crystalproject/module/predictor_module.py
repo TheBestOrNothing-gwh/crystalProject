@@ -18,6 +18,7 @@ class PreModule(lp.LightningModule):
         self.save_hyperparameters()
         self.configure_model()
         self.configure_loss()
+        self.configure_criterion()
         self.configure_normalize()
         self.test_value = []
         self.test_pre = []
@@ -65,6 +66,14 @@ class PreModule(lp.LightningModule):
                 self.loss = F.binary_cross_entropy
             case _:
                 self.print("Loss not found.")
+    
+    def configure_criterion(self):
+        conf_criterion = self.hparams["criterion"]
+        match conf_criterion["name"]:
+            case "mae":
+                self.criterion = F.l1_loss
+            case _:
+                self.print("Loss not found.")
 
     def configure_normalize(self):
         conf_normalize = self.hparams["normalize"]
@@ -84,7 +93,7 @@ class PreModule(lp.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         out = self(batch)
-        criterion = mean_absolute_error(self.normalize.denorm(out), batch["target"])
+        criterion = self.criterion(self.normalize.denorm(out), batch["target"])
         self.log('val_criterion', criterion, on_step=False,
             on_epoch=True, prog_bar=True, batch_size=batch["target"].shape[0])
 
@@ -94,8 +103,8 @@ class PreModule(lp.LightningModule):
         self.test_pre.append(self.normalize.denorm(out))
 
     def on_test_epoch_end(self, config):
-        test_value = torch.cat(self.test_value, dim=0)
-        test_pre = torch.cat(self.test_pre, dim=0)
+        test_value = torch.cat(self.test_value, dim=0).cpu()
+        test_pre = torch.cat(self.test_pre, dim=0).cpu()
         addition = "\n".join(
             [
                 f"MAE = {round(mean_absolute_error(test_value, test_pre), 2)}",

@@ -20,8 +20,6 @@ class MLPhead(nn.Module):
     
     def forward(self, fea):
         fea = self.softplus0(self.fc0(self.softplus0(fea)))
-        if self.classification:
-            fea = self.dropout(fea)
         if hasattr(self, "fcs") and hasattr(self, "softpluses"):
             for fc, softplus in zip(self.fcs, self.softpluses):
                 fea = softplus(fc(fea))

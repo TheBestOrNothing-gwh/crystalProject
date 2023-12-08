@@ -68,8 +68,8 @@ class CrystalTopoDataset(Dataset):
         data["underling_network"]["offsets"] = torch.tensor(data["underling_network"]["offsets"], dtype=torch.int32)
         data["underling_network"]["rvecs"] = torch.tensor(data["underling_network"]["rvecs"], dtype=torch.float32)
 
-        data["descriptor"] = torch.cat([torch.tensor(value[i], dtype=torch.float32) if len(value[i]) > 1 else torch.tensor([value[i]], dtype=torch.float32) for i in self.descriptor_index], dim=0).unsqueeze(dim=0)
-        data["target"] = torch.cat([torch.tensor(value[i], dtype=torch.float32) if len(value[i]) > 1 else torch.tensor([value[i]], dtype=torch.float32) for i in self.target_index], dim=0).unsqueeze(dim=0)
+        data["descriptor"] = torch.cat([torch.tensor(value[i], dtype=torch.float32) if value[i].size > 1 else torch.tensor([value[i]], dtype=torch.float32) for i in self.descriptor_index], dim=0).unsqueeze(dim=0)
+        data["target"] = torch.cat([torch.tensor(value[i], dtype=torch.float32) if value[i].size > 1 else torch.tensor([value[i]], dtype=torch.float32) for i in self.target_index], dim=0).unsqueeze(dim=0)
 
         return data
 
@@ -200,5 +200,4 @@ class CrystalTopoDataset(Dataset):
 
         batch_data["descriptor"] = torch.cat(batch_data["descriptor"], dim=0)
         batch_data["target"] = torch.cat(batch_data["target"], dim=0)
-
         return batch_data
