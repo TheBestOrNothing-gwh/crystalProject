@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch_geometric.nn import SimpleConv
+from torch_geometric.nn import GCNConv
 from torch_scatter import scatter
 
 from crystalproject.utils.registry import registry
@@ -20,7 +20,7 @@ class GCN(nn.Module):
         self.num_layers = num_layers
         self.hidden_channels = hidden_channels
 
-        self.convs = torch.nn.ModuleList([SimpleConv(combine_root="self_loop") for _ in range(num_layers)])
+        self.convs = torch.nn.ModuleList([GCNConv(in_channels=hidden_channels, out_channels=hidden_channels, improved=True) for _ in range(num_layers)])
 
     def forward(self, batch_data):
         v, edge_index = batch_data["v"], batch_data["edges"]
