@@ -156,11 +156,10 @@ class update_e(torch.nn.Module):
 
 
 class update_v(torch.nn.Module):
-    def __init__(self, hidden_channels, out_emb_channels, num_output_layers, act, output_init):
+    def __init__(self, hidden_channels, out_emb_channels, num_output_layers, act):
         super(update_v, self).__init__()
         self.act = act
-        self.output_init = output_init
-
+        
         self.lin_up = nn.Linear(hidden_channels, out_emb_channels, bias=True)
         self.lins = torch.nn.ModuleList()
         for _ in range(num_output_layers):
@@ -189,7 +188,6 @@ class DimeNetPP(torch.nn.Module):
         under the 3DGN gramework from `"Spherical Message Passing for 3D Molecular Graphs" <https://openreview.net/forum?id=givsRXsOt9r>`_ paper.
         
         Args:
-            energy_and_force (bool, optional): If set to :obj:`True`, will predict energy and take the negative of the derivative of the energy with respect to the atomic positions as predicted forces. (default: :obj:`False`)
             cutoff (float, optional): Cutoff distance for interatomic interactions. (default: :obj:`5.0`)
             num_layers (int, optional): Number of building blocks. (default: :obj:`4`)
             hidden_channels (int, optional): Hidden embedding size. (default: :obj:`128`)
@@ -203,25 +201,23 @@ class DimeNetPP(torch.nn.Module):
             num_after_skip (int, optional): Number of residual layers in the interaction blocks before the skip connection. (default: :obj:`2`)
             num_output_layers (int, optional): Number of linear layers for the output blocks. (default: :obj:`3`)
             act: (function, optional): The activation funtion. (default: :obj:`swish`) 
-            output_init: (str, optional): The initialization fot the output. It could be :obj:`GlorotOrthogonal` and :obj:`zeros`. (default: :obj:`GlorotOrthogonal`)       
     """
     def __init__(
-        self, energy_and_force=False, cutoff=5.0, num_layers=4, 
+        self, cutoff=5.0, num_layers=4, 
         hidden_channels=128, int_emb_size=64, basis_emb_size=8, out_emb_channels=256, 
         num_spherical=7, num_radial=6, envelope_exponent=5, 
         num_before_skip=1, num_after_skip=2, num_output_layers=3, 
-        act=swish, output_init='GlorotOrthogonal'):
+        act=swish):
         super(DimeNetPP, self).__init__()
 
         self.cutoff = cutoff
-        self.energy_and_force = energy_and_force
-
+        
         self.init_e = init(num_radial, hidden_channels, act)
-        self.init_v = update_v(hidden_channels, out_emb_channels, num_output_layers, act, output_init)
+        self.init_v = update_v(hidden_channels, out_emb_channels, num_output_layers, act)
         self.emb = emb(num_spherical, num_radial, self.cutoff, envelope_exponent)
         
         self.update_vs = torch.nn.ModuleList([
-            update_v(hidden_channels, out_emb_channels, num_output_layers, act, output_init) for _ in range(num_layers)])
+            update_v(hidden_channels, out_emb_channels, num_output_layers, act) for _ in range(num_layers)])
 
         self.update_es = torch.nn.ModuleList([
             update_e(
