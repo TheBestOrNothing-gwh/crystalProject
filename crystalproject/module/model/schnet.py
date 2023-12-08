@@ -79,19 +79,16 @@ class SchNet(torch.nn.Module):
         Args:
             num_layers (int, optional): The number of layers. (default: :obj:`6`)
             hidden_channels (int, optional): Hidden embedding size. (default: :obj:`128`)
-            out_channels (int, optional): Output embedding size. (default: :obj:`1`)
             num_filters (int, optional): The number of filters to use. (default: :obj:`128`)
             num_gaussians (int, optional): The number of gaussians :math:`\mu`. (default: :obj:`50`)
             cutoff (float, optional): Cutoff distance for interatomic interactions. (default: :obj:`10.0`).
-            reduce
     """
-    def __init__(self, cutoff=5.0, num_layers=6, hidden_channels=128, out_channels=1, num_filters=128, num_gaussians=50):
+    def __init__(self, cutoff=5.0, num_layers=6, hidden_channels=128, num_filters=128, num_gaussians=50):
         super(SchNet, self).__init__()
 
         self.cutoff = cutoff
         self.num_layers = num_layers
         self.hidden_channels = hidden_channels
-        self.out_channels = out_channels
         self.num_filters = num_filters
         self.num_gaussians = num_gaussians
 
@@ -119,5 +116,5 @@ class SchNet(torch.nn.Module):
 
         for update_e, update_v in zip(self.update_es, self.update_vs):
             e = update_e(v, dist, dist_emb, edge_index)
-            v = update_v(v,e, edge_index)
+            v = update_v(v, e, edge_index)
         return v

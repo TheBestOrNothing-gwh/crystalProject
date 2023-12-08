@@ -1,13 +1,10 @@
 import torch
 import torch.nn as nn
 from torch_geometric.nn import MessagePassing
-from torch_scatter import scatter
 
 from crystalproject.utils.registry import registry
-from crystalproject.module.utils.atom_embedding import AtomEmbedding
 from crystalproject.module.utils.dist_embedding import DistEmbedding
 
-s
 
 class IntraConvLayer(MessagePassing):
     """
@@ -68,7 +65,7 @@ class CrystalGraphConvNet(nn.Module):
         self,
         edge_embedding={"dmin": 0.0, "dmax": 8.0, "step": 0.2},
         hidden_channels=64,
-        n_conv=3
+        num_layers=3
     ):
         """
         Initialize CrystalGraphConvNet.
@@ -81,7 +78,7 @@ class CrystalGraphConvNet(nn.Module):
             Number of bond features
         hidden_channels: int
             Number of hidden atom features in the convolutional layers
-        n_conv: int
+        num_layers: int
             Number of convolutional layers
         h_fea_len: int
             Number of hidden features after pooling
@@ -97,7 +94,7 @@ class CrystalGraphConvNet(nn.Module):
                     node_fea_len=hidden_channels,
                     edge_fea_len=nbr_fea_len
                 )
-                for _ in range(n_conv)
+                for _ in range(num_layers)
             ]
         )
 
