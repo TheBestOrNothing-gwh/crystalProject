@@ -3,7 +3,6 @@ from crystalproject.visualize.utils import (
     get_structure,
     get_heatmap,
     scaler,
-    # get_model_and_datamodule,
     get_batch_from_index,
     get_batch_from_cif_id,
 )
