@@ -1,16 +1,15 @@
-import numpy as np
-import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import os
 import torch
 from torch.nn import functional as F
 import torch.optim.lr_scheduler as lrs
 import lightning.pytorch as lp
 from sklearn.metrics import mean_absolute_error, r2_score
-from scipy.stats import spearmanr
 
 from crystalproject.utils.registry import registry
 from crystalproject.module.model import *
 from crystalproject.module.utils.normalize import Normalizer
+from crystalproject.visualize.drawer import draw_compare
 
 
 class PreModule(lp.LightningModule):
@@ -94,24 +93,30 @@ class PreModule(lp.LightningModule):
         self.test_value.append(batch["target"])
         self.test_pre.append(self.normalize.denorm(out))
 
-    def on_test_epoch_end(self):
-        config = self.hparams["config"]
+    def on_test_epoch_end(self, config):
         test_value = torch.cat(self.test_value, dim=0)
         test_pre = torch.cat(self.test_pre, dim=0)
-        mae = mean_absolute_error(test_pre, test_value)
-        r2 = r2_score(test_pre, test_value)
-        ro = spearmanr(test_pre, test_value)[0]
-        _, ax = plt.subplots(figsize=(5, 5))
-        plt.title(config["name"])
-        plt.xlabel("predict value")
-        plt.ylabel("true value")
-        plt.text(5, 0, f'mae : {mae}')
-        plt.text(5, 1, f'r2 : {r2}')
-        plt.text(5, 2, f'spearmanr: {ro}')
-        Axis_line = np.linspace(*ax.get_xlim(), 2)
-        ax.plot(Axis_line, Axis_line, transform=ax.transAxes,
-                linestyle='--', linewidth=2, color='black', label=config["name"])
-        ax.scatter(test_pre.cpu(), test_value.cpu(), color='red')
-        ax.legend()
-        plt.savefig(os.path.join(config["root_dir"], config["name"]+'.png'),
-                    bbox_inches='tight')
+        addition = "\n".join(
+            [
+                f"MAE = {round(mean_absolute_error(test_value, test_pre), 2)}",
+                f"R2 = {round(r2_score(test_value, test_pre), 2)}",
+            ]
+        )
+        fig = Figure(
+            figsize=(8, 8),
+            dpi=300
+        )
+        ax = fig.add_subplot()
+        draw_compare(
+            fig=fig,
+            ax=ax,
+            x=test_value,
+            y=test_pre,
+            x_label=f"Mol.Sim",
+            y_label=f"ML",
+            addition=addition,
+            title=config["target"]
+        )
+        # 找到当前文件运行的位置
+        fig.savefig(os.path.join(config["root_dir"], "对比密度图.png"),
+                    bbox_inches="tight")

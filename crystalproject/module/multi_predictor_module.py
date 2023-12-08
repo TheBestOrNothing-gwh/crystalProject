@@ -99,8 +99,7 @@ class MultiPreModule(lp.LightningModule):
             torch.cat([out, output], dim=1)
         )
 
-    def on_test_epoch_end(self):
-        config = self.hparams["config"]
+    def on_test_epoch_end(self, config):
         out_output = torch.cat(self.test_out_output, dim=0)
         number = self.hparams["head"]["number"]
         out = out_output[:, :number]
@@ -108,12 +107,12 @@ class MultiPreModule(lp.LightningModule):
         for i in range(number):
             criterion = self.criterion(out[:, i], output[:, i])
             _, ax = plt.subplots(figsize=(5, 5))
-            plt.xlabel(config["name"][i]+" predict value")
-            plt.ylabel(config["name"][i]+" true value")
+            plt.xlabel(config["target"][i]+" predict value")
+            plt.ylabel(config["target"][i]+" true value")
             plt.text(5, 0, f'{self.hparams["criterion"]["name"]} is {criterion}')
             Axis_line = np.linspace(*ax.get_xlim(), 2)
             ax.plot(Axis_line, Axis_line, transform=ax.transAxes,
-                    linestyle='--', linewidth=2, color='black', label=config["name"][i])
+                    linestyle='--', linewidth=2, color='black', label=config["target"][i])
             ax.scatter(out[:, i].cpu(), output[:, i].cpu(), color='red')
             ax.legend()
             plt.savefig(os.path.join(config["root_dir"], config["name"][i]+'.png'),

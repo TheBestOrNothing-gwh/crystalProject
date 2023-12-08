@@ -124,7 +124,7 @@ def draw_heatmap_graph(ax, atoms, uni_idx, colors, atomic_scale, alpha):
         )
 
 
-def draw_compare(fig, ax, x, y, x_label, y_label, addition, title):
+def draw_compare(fig, ax, x, y, x_label, y_label, addition, title="对比密度图"):
     # 绘制 hex bin
     hb = ax.hexbin(x, y, gridsize=50, bins='log', cmap="BuGn")
     # 添加colorbar
@@ -134,6 +134,7 @@ def draw_compare(fig, ax, x, y, x_label, y_label, addition, title):
     # 添加label
     ax.set_xlabel(x_label, fontsize=12, fontfamily="sans-serif", fontstyle="italic")
     ax.set_ylabel(y_label, fontsize=12, fontfamily="sans-serif", fontstyle="italic")
+    ax.set_aspect("equal", "box")
     # 添加对角直线
     Axis_line = np.linspace(*ax.get_xlim(), 2)
     ax.plot(Axis_line, Axis_line, transform=ax.transAxes, linestyle="--", linewidth=1, color="red")

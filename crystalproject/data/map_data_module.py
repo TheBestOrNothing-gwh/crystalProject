@@ -1,5 +1,5 @@
-from torch.utils.data import DataLoader
 import lightning.pytorch as lp
+
 from crystalproject.utils.registry import registry
 from crystalproject.data.dataset import *
 from crystalproject.data.utils.dataloader import MultiEpochsDataLoader, CudaDataLoader
