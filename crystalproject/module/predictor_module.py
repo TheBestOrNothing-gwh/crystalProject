@@ -86,7 +86,7 @@ class PreModule(lp.LightningModule):
         out = self(batch)
         criterion = mean_absolute_error(self.normalize.denorm(out), batch["target"])
         self.log('val_criterion', criterion, on_step=False,
-                 on_epoch=True, prog_bar=True, batch_size=batch["target"].shape[0])
+            on_epoch=True, prog_bar=True, batch_size=batch["target"].shape[0])
 
     def test_step(self, batch, batch_idx):
         out = self(batch)
@@ -112,11 +112,10 @@ class PreModule(lp.LightningModule):
             ax=ax,
             x=test_value,
             y=test_pre,
-            x_label=f"Mol.Sim",
-            y_label=f"ML",
+            x_label="Mol.Sim",
+            y_label="ML",
             addition=addition,
             title=config["target"]
         )
         # 找到当前文件运行的位置
-        fig.savefig(os.path.join(config["root_dir"], "对比密度图.png"),
-                    bbox_inches="tight")
+        fig.savefig(os.path.join(config["root_dir"], "对比密度图.png"), bbox_inches="tight")
