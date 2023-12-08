@@ -5,24 +5,18 @@ from crystalproject.utils.registry import registry
 @registry.register_head("mlphead")
 class MLPhead(nn.Module):
 
-    def __init__(self, fea_in_len=128, fea_len=128, n_h=1, classification=False):
+    def __init__(self, in_channels=256, hidden_channels=256, out_channels=1, n_h=1):
         super(MLPhead, self).__init__()
-        self.classification = classification
-        self.fc0 = nn.Linear(fea_in_len, fea_len)
+        self.fc0 = nn.Linear(in_channels, hidden_channels)
         self.softplus0 = nn.Softplus()
         if n_h > 1:
             self.fcs = nn.ModuleList(
-                [nn.Linear(fea_len, fea_len) for _ in range(n_h - 1)]
+                [nn.Linear(hidden_channels, hidden_channels) for _ in range(n_h - 1)]
             )
             self.softpluses = nn.ModuleList(
                 [nn.Softplus() for _ in range(n_h - 1)]
             )
-        if self.classification:
-            self.fc_out = nn.Linear(fea_len, 2)
-            self.logsoftmax = nn.LogSoftmax(dim=1)
-            self.dropout = nn.Dropout()
-        else:
-            self.fc_out = nn.Linear(fea_len, 1)
+        self.fc_out = nn.Linear(hidden_channels, out_channels)
     
     def forward(self, fea):
         fea = self.softplus0(self.fc0(self.softplus0(fea)))
@@ -32,6 +26,4 @@ class MLPhead(nn.Module):
             for fc, softplus in zip(self.fcs, self.softpluses):
                 fea = softplus(fc(fea))
         out = self.fc_out(fea)
-        if self.classification:
-            out = self.logsoftmax(out)
         return out
