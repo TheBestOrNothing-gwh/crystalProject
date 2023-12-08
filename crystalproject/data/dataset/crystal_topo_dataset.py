@@ -36,7 +36,7 @@ class CrystalTopoDataset(Dataset):
         value = self.datas.loc[index]
         name = value["name"]
         if self.on_the_fly:
-            data = create_crystal_topo(os.path.join(self.root_dir, "all", name+".cif"), self.radius, self.max_nbr_num)
+            data = create_crystal_topo(os.path.join(self.root_dir, "all", name+".cif"), self.radius, self.max_nbr_num, value["use_bond_types"], value["bond_types"], value["linker_types"])
         else:
             data = pickle.load(open(os.path.join(self.root_dir, "all", name+'.pkl'), "rb"))
 
