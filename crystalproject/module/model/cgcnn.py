@@ -7,7 +7,7 @@ from crystalproject.utils.registry import registry
 from crystalproject.module.utils.atom_embedding import AtomEmbedding
 from crystalproject.module.utils.dist_embedding import DistEmbedding
 
-
+s
 
 class IntraConvLayer(MessagePassing):
     """

@@ -257,6 +257,7 @@ class DimeNetPP(torch.nn.Module):
         
         for update_e, update_v in zip(self.update_es, self.update_vs, self.update_us):
             e = update_e(e, emb, triplet_index)
+            # 每层的嵌入结果相加得到最终的原子嵌入结果
             v = v + update_v(e, edge_index[1])
             
         return v
