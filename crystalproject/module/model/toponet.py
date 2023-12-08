@@ -9,7 +9,8 @@ from crystalproject.module.utils.atom_embedding import AtomEmbedding
 @registry.register_model("toponet")
 class TopoNet(nn.Module):
     """
-    完整的拓扑网络，分为三层图神经网络，第1,3层使用的网络是3D图神经网络，或者是schnet、dimenet++、spherenet，第二层则是一个简单的图卷积网络
+    完整的拓扑网络, 分为三层图神经网络, 第1,3层使用的网络是3D图神经网络, 或者是schnet、dimenet++、spherenet, 
+    第二层则是一个简单的图卷积网络
     """
 
     def __init__(
@@ -55,18 +56,17 @@ class TopoNet(nn.Module):
         batch_data["atom_radius_graph"]["v"] = atom_fea
         atom_fea = self.atom_graph(batch_data["atom_radius_graph"])
         # 读出得到原子簇的表示
-        # inter = batch_data["cluster_graph"]["inter"]
-        # cluster_fea = scatter(atom_fea[inter[0]], inter[1], dim=0, reduce=self.atom_cluster_reduce)
-        # cluster_fea = self.embedding_cluster(cluster_fea)
-        # batch_data["cluster_graph"]["v"] = cluster_fea
-        # cluster_fea = self.cluster_graph(batch_data["cluster_graph"])
+        inter = batch_data["cluster_graph"]["inter"]
+        cluster_fea = scatter(atom_fea[inter[0]], inter[1], dim=0, reduce=self.atom_cluster_reduce)
+        cluster_fea = self.embedding_cluster(cluster_fea)
+        batch_data["cluster_graph"]["v"] = cluster_fea
+        cluster_fea = self.cluster_graph(batch_data["cluster_graph"])
         # 读出底层网络节点的表示
-        # inter = batch_data["underling_network"]["inter"]
-        # network_fea = scatter(cluster_fea[inter[0]], inter[1], dim=0, reduce=self.cluster_network_reduce)
-        # batch_data["underling_network"]["v"] = network_fea
-        # network_fea = self.underling_network(batch_data["underling_network"])
+        inter = batch_data["underling_network"]["inter"]
+        network_fea = scatter(cluster_fea[inter[0]], inter[1], dim=0, reduce=self.cluster_network_reduce)
+        batch_data["underling_network"]["v"] = network_fea
+        network_fea = self.underling_network(batch_data["underling_network"])
         # 读出完全的表示
-        # out = scatter(network_fea, batch_data["batch"]["network"], dim=0, reduce=self.reduce)
-        out = scatter(atom_fea, batch_data["batch"]["atom"], dim=0, reduce=self.reduce)
+        out = scatter(network_fea, batch_data["batch"]["network"], dim=0, reduce=self.reduce)
         out = self.embedding_cluster(out)
         return out
