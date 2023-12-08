@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from torch_geometric.nn import GCNConv
-from torch_scatter import scatter
 
 from crystalproject.utils.registry import registry
 
