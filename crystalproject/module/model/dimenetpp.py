@@ -64,7 +64,6 @@ class init(torch.nn.Module):
     def forward(self, x, emb, edge_index):
         j, i = edge_index
         rbf,_ = emb
-        x = self.emb(x)
         rbf0 = self.act(self.lin_rbf_0(rbf))
         e1 = self.act(self.lin(torch.cat([x[i], x[j], rbf0], dim=-1)))
         e2 = self.lin_rbf_1(rbf) * e1
@@ -244,8 +243,8 @@ class DimeNetPP(torch.nn.Module):
 
 
     def forward(self, batch_data):
-        v, pos, edges, offsets, offsets_real = batch_data["v"], batch_data["pos"], batch_data["edges"], batch_data["offsets"], batch_data["offsets_real"]
-        dist, edge_index, angle, triplet_index = crystal_to_dat(pos, edges, offsets, offsets_real)
+        v, pos, edges, edges_devide, offsets, offsets_real = batch_data["v"], batch_data["pos"], batch_data["edges"], batch_data["edges_devide"], batch_data["offsets"], batch_data["offsets_real"]
+        dist, edge_index, angle, triplet_index = crystal_to_dat(pos, edges, offsets, offsets_real, edges_devide)
 
         emb = self.emb(dist, angle, triplet_index[0])
 
@@ -253,7 +252,7 @@ class DimeNetPP(torch.nn.Module):
         e = self.init_e(v, emb, edge_index)
         v = self.init_v(e, edge_index[1])
         
-        for update_e, update_v in zip(self.update_es, self.update_vs, self.update_us):
+        for update_e, update_v in zip(self.update_es, self.update_vs):
             e = update_e(e, emb, triplet_index)
             # 每层的嵌入结果相加得到最终的原子嵌入结果
             v = v + update_v(e, edge_index[1])

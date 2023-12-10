@@ -58,7 +58,7 @@ class TopoNet(nn.Module):
         # 读出得到原子簇的表示
         inter = batch_data["cluster_graph"]["inter"]
         cluster_fea = scatter(atom_fea[inter[0]], inter[1], dim=0, reduce=self.atom_cluster_reduce)
-        cluster_fea = self.embedding_cluster(cluster_fea)
+        # cluster_fea = self.embedding_cluster(cluster_fea)
         batch_data["cluster_graph"]["v"] = cluster_fea
         cluster_fea = self.cluster_graph(batch_data["cluster_graph"])
         # 读出底层网络节点的表示
@@ -68,4 +68,6 @@ class TopoNet(nn.Module):
         network_fea = self.underling_network(batch_data["underling_network"])
         # 读出完全的表示
         out = scatter(network_fea, batch_data["batch"]["network"], dim=0, reduce=self.reduce)
+        # out = scatter(atom_fea, batch_data["batch"]["atom"], dim=0, reduce=self.reduce)
+        # out = self.embedding_cluster(out)
         return out

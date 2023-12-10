@@ -101,8 +101,12 @@ class PreModule(lp.LightningModule):
         out = self(batch)
         self.test_value.append(batch["target"])
         self.test_pre.append(self.normalize.denorm(out))
+    
+    def set_config(self, config):
+        self.config = config
 
-    def on_test_epoch_end(self, config):
+    def on_test_epoch_end(self):
+        config = self.config
         test_value = torch.cat(self.test_value, dim=0).cpu()
         test_pre = torch.cat(self.test_pre, dim=0).cpu()
         addition = "\n".join(

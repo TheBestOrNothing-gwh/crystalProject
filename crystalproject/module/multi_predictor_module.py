@@ -37,7 +37,8 @@ class MultiPreModule(PreModule):
         out = torch.cat([head(out) for head in self.heads], dim=1)
         return out
 
-    def on_test_epoch_end(self, config):
+    def on_test_epoch_end(self):
+        config = self.config
         test_value = torch.cat(self.test_value, dim=0).cpu()
         test_pre = torch.cat(self.test_pre, dim=0).cpu()
         num = len(config["target"])
