@@ -4,12 +4,11 @@ import torch
 from torch.nn import functional as F
 import torch.optim.lr_scheduler as lrs
 import lightning.pytorch as lp
-from sklearn.metrics import mean_absolute_error, r2_score
+from torchmetrics.regression import MeanAbsoluteError, R2Score
 
 from crystalproject.utils.registry import registry
 from crystalproject.module.model import *
 from crystalproject.module.utils.normalize import Normalizer
-from crystalproject.visualize.drawer import draw_compare
 
 
 class PreModule(lp.LightningModule):
@@ -18,7 +17,7 @@ class PreModule(lp.LightningModule):
         self.save_hyperparameters()
         self.configure_model()
         self.configure_loss()
-        self.configure_criterion()
+        self.configure_metrics()
         self.configure_normalize()
         self.test_value = []
         self.test_pre = []
@@ -56,25 +55,12 @@ class PreModule(lp.LightningModule):
         return [optimizer], [scheduler]
 
     def configure_loss(self):
-        conf_loss = self.hparams["loss"]
-        match conf_loss["name"]:
-            case "mse":
-                self.loss = F.mse_loss
-            case "l1":
-                self.loss = F.l1_loss
-            case "bce":
-                self.loss = F.binary_cross_entropy
-            case _:
-                self.print("Loss not found.")
-    
-    def configure_criterion(self):
-        conf_criterion = self.hparams["criterion"]
-        match conf_criterion["name"]:
-            case "mae":
-                self.criterion = F.l1_loss
-            case _:
-                self.print("Loss not found.")
+        self.loss = F.mse_loss
 
+    def configure_metrics(self):
+        self.mae = MeanAbsoluteError()
+        self.r2 = R2Score()
+        
     def configure_normalize(self):
         conf_normalize = self.hparams["normalize"]
         self.normalize = Normalizer(**conf_normalize)
@@ -87,48 +73,17 @@ class PreModule(lp.LightningModule):
     def training_step(self, batch, batch_idx):
         out = self(batch)
         loss = self.loss(out, self.normalize.norm(batch["target"]))
-        self.log('train_loss', loss, on_step=False,
-                 on_epoch=True, prog_bar=True, batch_size=batch["target"].shape[0])
+        self.log('train_loss', loss, prog_bar=True, batch_size=batch["target"].shape[0])
         return loss
 
     def validation_step(self, batch, batch_idx):
         out = self(batch)
-        criterion = self.criterion(self.normalize.denorm(out), batch["target"])
-        self.log('val_criterion', criterion, on_step=False,
-            on_epoch=True, prog_bar=True, batch_size=batch["target"].shape[0])
+        self.mae.update(self.normalize.denorm(out), batch["target"])
+        self.log('val_mae', self.mae, prog_bar=True, batch_size=batch["target"].shape[0])
 
     def test_step(self, batch, batch_idx):
         out = self(batch)
-        self.test_value.append(batch["target"])
-        self.test_pre.append(self.normalize.denorm(out))
-    
-    def set_config(self, config):
-        self.config = config
-
-    def on_test_epoch_end(self):
-        config = self.config
-        test_value = torch.cat(self.test_value, dim=0).cpu()
-        test_pre = torch.cat(self.test_pre, dim=0).cpu()
-        addition = "\n".join(
-            [
-                f"MAE = {round(mean_absolute_error(test_value, test_pre), 2)}",
-                f"R2 = {round(r2_score(test_value, test_pre), 2)}",
-            ]
-        )
-        fig = Figure(
-            figsize=(8, 8),
-            dpi=300
-        )
-        ax = fig.add_subplot()
-        draw_compare(
-            fig=fig,
-            ax=ax,
-            x=test_value,
-            y=test_pre,
-            x_label="Mol.Sim",
-            y_label="ML",
-            addition=addition,
-            title=config["target"]
-        )
-        # 找到当前文件运行的位置
-        fig.savefig(os.path.join(config["root_dir"], "对比密度图.png"), bbox_inches="tight")
+        self.mae.update(self.normalize(out), batch["target"])
+        self.r2.update(self.normalize(out), batch["target"])
+        self.log("test_mae", self.mae, batch_size=batch["target"].shape[0])
+        self.log("test_r2", self.r2, batch_size=batch["target"].shape[0])

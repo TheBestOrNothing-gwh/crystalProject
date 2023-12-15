@@ -2,7 +2,8 @@ import os
 from matplotlib.figure import Figure
 import torch
 import torch.nn as nn
-from sklearn.metrics import mean_absolute_error, r2_score
+from torch.nn import functional as F
+from torchmetrics.regression import MeanAbsoluteError, R2Score
 
 from crystalproject.utils.registry import registry
 from crystalproject.module.model import *
@@ -20,22 +21,38 @@ class MultiPreModule(PreModule):
         self.backbone = model_cls(**conf_backbone["kwargs"])
         conf_head = self.hparams["head"]
         head_cls = registry.get_head_class(conf_head["name"])
-        self.heads = nn.ModuleList(
-            [
+        self.heads = nn.ModuleDict(
+            dict.fromkeys(
+                conf_head["target"],
                 head_cls(**conf_head["kwargs"])
-                for _ in range(conf_head["number"])
-            ]
+            )
         )
 
     def configure_loss(self):
-        conf_loss = self.hparams["loss"]
-        loss_cls = registry.get_loss_class(conf_loss["name"])
-        self.loss = loss_cls(**conf_loss["kwargs"])
-
+        self.loss = F.mse_loss
+        
+    
+    def configure_metrics(self):
+        self.maes = dict.fromkeys(self.hparams["head"]["target"], MeanAbsoluteError())
+        self.r2s = dict.fromkeys(self.hparams["head"]["target"], R2Score())
+        
     def forward(self, input):
         out = self.backbone(*input)
-        out = torch.cat([head(out) for head in self.heads], dim=1)
+        out = {}
+        for target, head in self.heads.items():
+            out[target] = head(out)
         return out
+    
+    def training_step(self, batch, batch_idx):
+        out = self(batch)
+        for target in self.hparams["head"]["target"]:
+            loss = self.loss(out[target], batch[target])
+    
+    def validation_step(self, batch, batch_idx):
+        out = self(batch)
+        for target in self.hparams["head"]["target"]:
+            self.maes[target].update(out[target], batch[target])
+            self.log(f'val_{target}', self.maes[target], prog_bar=True, batch_size=batch[target].shape[0])
 
     def on_test_epoch_end(self):
         config = self.config
