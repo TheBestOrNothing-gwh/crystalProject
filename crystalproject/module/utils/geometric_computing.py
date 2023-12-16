@@ -1,40 +1,46 @@
-# Based on the code from: https://github.com/klicperajo/dimenet,
-# https://github.com/rusty1s/pytorch_geometric/blob/master/torch_geometric/nn/models/dimenet.py
-
 import torch
+from torch_scatter import scatter
+from math import pi
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
-def crystal_to_dat(pos, edges, offsets, offsets_real, edges_devide):
+def crystal_to_dat(pos, edges, offsets, offsets_real):
     # Calculate distances. # number of edges
     dist = (pos[edges[1]] - pos[edges[0]] + offsets_real).norm(dim=-1)
 
     # Calculate angle
     # get triplets
-    lst = [torch.nonzero(torch.eq(edges[1][:edges_devide[0], None], edges[0][:edges_devide[0]]))]
-    lst.extend([torch.nonzero(torch.eq(edges[1][edges_devide[i]:edges_devide[i+1], None], edges[0][edges_devide[i]:edges_devide[i+1]])) for i in range(edges_devide.shape[0] - 1)])
-    triplets = torch.cat(lst, dim=0).T
+    triplets = torch.nonzero(torch.eq(edges[1][:, None], edges[0])).T
     mask = (
         torch.eq(edges[:, triplets[0]][0], edges[:, triplets[1]][1]) & 
         torch.eq(offsets[triplets[0]], -offsets[triplets[1]]).all(dim=1)
     )
     triplets = triplets[:, ~mask]
     # compute angle
-    p_jk = -(pos[edges[:, triplets[0]][1]] - pos[edges[:, triplets[0]][0]] + offsets_real[triplets[0]])
-    p_ji = pos[edges[:, triplets[1]][1]] - pos[edges[:, triplets[1]][0]] + offsets_real[triplets[1]]
+    p_jk = -(pos[edges[1:, triplets[0]]] - pos[edges[0:, triplets[0]]] + offsets_real[triplets[0]])
+    p_ji = pos[edges[1:, triplets[1]]] - pos[edges[0:, triplets[1]]] + offsets_real[triplets[1]]
     a = (p_jk * p_ji).sum(dim=-1)
     b = torch.cross(p_jk, p_ji).norm(dim=-1)
     angle = torch.atan2(b, a)
 
     # Calculate torsion
+    torsion = torch.nonzero(torch.eq(triplets[0][:, None], triplets[0])).T
+    mask = (
+        torch.eq(triplets[0:, torsion[0]], triplets[0:, torsion[1]])
+    )
+    torsion = torsion[:, ~mask]
+    # compute dihedral_angle
+    p_jn = -(pos[edges[1:, triplets[0, :torsion[0]]]] - pos[edges[0:, triplets[0, :torsion[0]]]] + offsets_real[triplets[0, :torsion[0]]])
+    p_jk = -(pos[edges[1:, triplets[0, :torsion[1]]]] - pos[edges[0:, triplets[0, :torsion[1]]]] + offsets_real[triplets[0, :torsion[1]]])
+    p_ji = pos[edges[1:, triplets[1, :torsion[1]]]] - pos[edges[0:, triplets[1, :torsion[1]]]] + offsets_real[triplets[1, :torsion[1]]]
+    plane1 = torch.cross(p_jn, p_ji)
+    plane2 = torch.cross(p_jk, p_ji)
+    a = (plane1 * plane2).sum(dim=-1) # cos_angle * |plane1| * |plane2|
+    b = torch.cross(plane1, plane2).norm(dim=-1) # sin_angle * |pos_ji| * |pos_jk|
+    dihedral_angle = torch.atan2(b, a)
+    dihedral_angle[dihedral_angle<=0] += 2 * pi
+    dihedral_angle = scatter(dihedral_angle, torsion[1], reduce="min")
 
-    # torsion = torch.nonzero(torch.eq(triplets[1][:, None], triplets[0])).T
-    # mask = (
-    #     torch.eq(triplets[:, torsion[0]][0], triplets[:, torsion[1]][1]) &
-    #     torch.eq()
-    # )
-    return dist, edges, angle, triplets
+    return dist, edges, angle, dihedral_angle, triplets
 
 
 if __name__ == "__main__":
