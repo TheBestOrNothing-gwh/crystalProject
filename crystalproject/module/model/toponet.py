@@ -55,19 +55,20 @@ class TopoNet(nn.Module):
         atom_fea = self.embedding_atom(atom_fea)
         batch_data["atom_graph"]["v"] = atom_fea
         atom_fea = self.atom_graph(batch_data["atom_graph"])
+        # 读出原子图
+        batch_data["atom_graph_embedding"] = scatter(atom_fea, batch_data["batch"]["atom"], dim=0, reduce=self.reduce)
         # 读出得到原子簇的表示
         inter = batch_data["cluster_graph"]["inter"]
         cluster_fea = scatter(atom_fea[inter[0]], inter[1], dim=0, reduce=self.atom_cluster_reduce)
-        # cluster_fea = self.embedding_cluster(cluster_fea)
+        cluster_fea = self.embedding_cluster(cluster_fea)
         batch_data["cluster_graph"]["v"] = cluster_fea
         cluster_fea = self.cluster_graph(batch_data["cluster_graph"])
+        # 读出粗粒度图
+        batch_data["cluster_graph_embedding"] = scatter(cluster_fea, batch_data["batch"]["cluster"], dim=0, reduce=self.reduce)
         # 读出底层网络节点的表示
         inter = batch_data["underling_network"]["inter"]
         network_fea = scatter(cluster_fea[inter[0]], inter[1], dim=0, reduce=self.cluster_network_reduce)
         batch_data["underling_network"]["v"] = network_fea
         network_fea = self.underling_network(batch_data["underling_network"])
-        # 读出完全的表示
-        out = scatter(network_fea, batch_data["batch"]["network"], dim=0, reduce=self.reduce)
-        # out = scatter(atom_fea, batch_data["batch"]["atom"], dim=0, reduce=self.reduce)
-        # out = self.embedding_cluster(out)
-        return out
+        # 读出
+        batch_data["underling_network_embedding"] = scatter(network_fea, batch_data["batch"]["network"], dim=0, reduce=self.reduce)

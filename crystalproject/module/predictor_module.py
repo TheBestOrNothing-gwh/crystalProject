@@ -1,6 +1,5 @@
-from matplotlib.figure import Figure
-import os
 import torch
+import torch.nn as nn
 from torch.nn import functional as F
 import torch.optim.lr_scheduler as lrs
 import lightning.pytorch as lp
@@ -8,7 +7,6 @@ from torchmetrics.regression import MeanAbsoluteError, R2Score
 
 from crystalproject.utils.registry import registry
 from crystalproject.module.model import *
-from crystalproject.module.utils.normalize import Normalizer
 
 
 class PreModule(lp.LightningModule):
@@ -18,18 +16,19 @@ class PreModule(lp.LightningModule):
         self.configure_model()
         self.configure_loss()
         self.configure_metrics()
-        self.configure_normalize()
-        self.test_value = []
-        self.test_pre = []
 
     def configure_model(self):
         conf_backbone = self.hparams["backbone"]
         model_cls = registry.get_model_class(conf_backbone["name"])
         self.backbone = model_cls(**conf_backbone["kwargs"])
-        conf_head = self.hparams["head"]
-        head_cls = registry.get_head_class(conf_head["name"])
-        self.head = head_cls(**conf_head["kwargs"])
-
+        conf_heads = self.hparams["heads"]
+        self.heads = nn.ModuleList(
+            [
+                registry.get_head_class(conf_head["name"])(**conf_head["wargs"])
+                for conf_head in conf_heads
+            ]
+        )
+    
     def configure_optimizers(self):
         conf_optimizer = self.hparams["optimizers"]
         conf_scheduler = self.hparams["scheduler"]
@@ -56,34 +55,39 @@ class PreModule(lp.LightningModule):
 
     def configure_loss(self):
         self.loss = F.mse_loss
-
+        self.weight = self.hparams["heads"]["targets"]
+            
     def configure_metrics(self):
-        self.mae = MeanAbsoluteError()
-        self.r2 = R2Score()
+        self.maes = dict.fromkeys(self.hparams["heads"]["targets"].keys(), MeanAbsoluteError())
+        self.r2s = dict.fromkeys(self.hparams["heads"]["targets"].keys(), R2Score())
         
-    def configure_normalize(self):
-        conf_normalize = self.hparams["normalize"]
-        self.normalize = Normalizer(**conf_normalize)
-
-    def forward(self, input):
-        out = self.backbone(input)
-        out = self.head(out)
-        return out
-
+    def forward(self, batch):
+        self.backbone(batch)
+        batch["output"] = {}
+        for head in self.heads:
+            head(batch)
+    
     def training_step(self, batch, batch_idx):
-        out = self(batch)
-        loss = self.loss(out, self.normalize.norm(batch["target"]))
-        self.log('train_loss', loss, prog_bar=True, batch_size=batch["target"].shape[0])
-        return loss
-
+        self(batch)
+        out = batch["output"]
+        total_loss = sum([self.weight[target] * self.loss(out[target], batch[target]) for target in self.hparams["heads"]["target"]])
+        self.log('train_loss', total_loss, prog_bar=True, batch_size=batch["batch"]["batch_size"])
+        return total_loss
+    
     def validation_step(self, batch, batch_idx):
-        out = self(batch)
-        self.mae.update(self.normalize.denorm(out), batch["target"])
-        self.log('val_mae', self.mae, prog_bar=True, batch_size=batch["target"].shape[0])
-
+        self(batch)
+        out = batch["output"]
+        for target in self.hparams["heads"]["target"]:
+            self.maes[target].update(out[target], batch[target])
+            self.log(f'val_mae_{target}', self.maes[target], prog_bar=True, batch_size=batch["batch"]["batch_size"])
+            self.r2s[target].update(out[target], batch[target])
+            self.log(f'val_r2_{target}', self.r2s[target], prog_bar=True, batch_size=batch["batch"]["batch_size"])
+    
     def test_step(self, batch, batch_idx):
-        out = self(batch)
-        self.mae.update(self.normalize(out), batch["target"])
-        self.r2.update(self.normalize(out), batch["target"])
-        self.log("test_mae", self.mae, batch_size=batch["target"].shape[0])
-        self.log("test_r2", self.r2, batch_size=batch["target"].shape[0])
+        self(batch)
+        out = batch["output"]
+        for target in self.hparams["heads"]["target"]:
+            self.maes[target].update(out[target], batch[target])
+            self.log(f'test_mae_{target}', self.maes[target], prog_bar=True, batch_size=batch["batch"]["batch_size"])
+            self.r2s[target].update(out[target], batch[target])
+            self.log(f'test_r2_{target}', self.r2s[target], prog_bar=True, batch_size=batch["batch"]["batch_size"])
