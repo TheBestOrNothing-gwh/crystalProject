@@ -4,13 +4,11 @@ from itertools import combinations
 from matplotlib import pyplot as plt
 from matplotlib.colors import Normalize
 import matplotlib.ticker as mticker
-import seaborn as sns
 from ase.data import covalent_radii
 from molmod.units import angstrom
 
 from crystalproject.assets.colors import cpk_colors
-from crystalproject.visualize.utils import plot_cube
-from crystalproject.visualize.setting import get_fig_ax
+from crystalproject.visualize.utils import plot_cube\
 
 
 def draw_colorbar(fig, ax, cmap, minatt, maxatt, **cbar_kwargs):
