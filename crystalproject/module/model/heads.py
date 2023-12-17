@@ -2,26 +2,19 @@ import torch.nn as nn
 from crystalproject.utils.registry import registry
 
 
-@registry.register_head("mlphead")
-class MLPhead(nn.Module):
+@registry.register_head("regression")
+class Reghead(nn.Module):
 
-    def __init__(self, in_channels=256, hidden_channels=256, out_channels=1, n_h=1):
-        super(MLPhead, self).__init__()
-        self.fc0 = nn.Linear(in_channels, hidden_channels)
-        self.softplus0 = nn.Softplus()
-        if n_h > 1:
-            self.fcs = nn.ModuleList(
-                [nn.Linear(hidden_channels, hidden_channels) for _ in range(n_h - 1)]
-            )
-            self.softpluses = nn.ModuleList(
-                [nn.Softplus() for _ in range(n_h - 1)]
-            )
-        self.fc_out = nn.Linear(hidden_channels, out_channels)
-    
-    def forward(self, fea):
-        fea = self.softplus0(self.fc0(self.softplus0(fea)))
-        if hasattr(self, "fcs") and hasattr(self, "softpluses"):
-            for fc, softplus in zip(self.fcs, self.softpluses):
-                fea = softplus(fc(fea))
-        out = self.fc_out(fea)
-        return out
+    def __init__(self, in_channels=256, descriptor="underling_network_embedding", out_channels=1, targets=[]):
+        super(Reghead, self).__init__()
+        assert len(targets) == out_channels, "输出维度必须等于目标数量"
+        self.fc = nn.Linear(in_channels, out_channels)
+        self.descriptor = descriptor
+        self.targets = targets
+
+    def forward(self, batch_data):
+        out = self.fc(batch_data[self.descriptor])
+        for i, target in enumerate(self.targets):
+            batch_data["output"][target] = out[:, i]
+        
+        
