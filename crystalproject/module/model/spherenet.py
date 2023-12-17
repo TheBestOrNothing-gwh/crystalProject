@@ -162,17 +162,15 @@ class update_e(torch.nn.Module):
         return e1, e2
 
 class update_v(torch.nn.Module):
-    def __init__(self, hidden_channels, out_emb_channels, out_channels, num_output_layers, act, output_init):
+    def __init__(self, hidden_channels, out_emb_channels, num_output_layers, act):
         super(update_v, self).__init__()
         self.act = act
-        self.output_init = output_init
 
         self.lin_up = nn.Linear(hidden_channels, out_emb_channels, bias=True)
         self.lins = torch.nn.ModuleList()
         for _ in range(num_output_layers):
             self.lins.append(nn.Linear(out_emb_channels, out_emb_channels))
-        self.lin = nn.Linear(out_emb_channels, out_channels, bias=False)
-
+        
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -180,19 +178,15 @@ class update_v(torch.nn.Module):
         for lin in self.lins:
             glorot_orthogonal(lin.weight, scale=2.0)
             lin.bias.data.fill_(0)
-        if self.output_init == 'zeros':
-            self.lin.weight.data.fill_(0)
-        if self.output_init == 'GlorotOrthogonal':
-            glorot_orthogonal(self.lin.weight, scale=2.0)
-
+        
     def forward(self, e, i):
         _, e2 = e
         v = scatter(e2, i, dim=0)
         v = self.lin_up(v)
         for lin in self.lins:
             v = self.act(lin(v))
-        v = self.lin(v)
         return v
+
 
 @registry.register_model("spherenet")
 class SphereNet(torch.nn.Module):

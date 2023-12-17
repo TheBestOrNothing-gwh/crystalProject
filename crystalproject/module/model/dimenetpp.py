@@ -180,7 +180,7 @@ class update_v(torch.nn.Module):
         for lin in self.lins:
             v = self.act(lin(v))
         return v
-
+    
 
 @registry.register_model("dimenet++")
 class DimeNetPP(torch.nn.Module):
@@ -254,7 +254,6 @@ class DimeNetPP(torch.nn.Module):
         
         for update_e, update_v in zip(self.update_es, self.update_vs):
             e = update_e(e, emb, triplet_index)
-            # 每层的嵌入结果相加得到最终的原子嵌入结果
             v = v + update_v(e, edge_index[1])
             
         return v
