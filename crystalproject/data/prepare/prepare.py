@@ -92,7 +92,7 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, ma
     return datas
 
 
-def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", radius=5.0, processes=24):
+def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", radius=5.0, max_nbr_num=12, processes=24):
     with open(os.path.join(root_dir, "id_prop.json")) as f:
         datas = json.load(f)
     datas = pd.json_normalize(datas)
@@ -100,7 +100,7 @@ def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", ra
     if not os.path.exists(os.path.join(target_dir, "all")):
         os.makedirs(os.path.join(target_dir, "all"))
     new_datas = pre_control(root_dir, target_dir, datas.iloc[:, :],
-                stage=stage, radius=radius, processes=processes)
+                stage=stage, radius=radius, max_nbr_num=max_nbr_num, processes=processes)
     # 是否做过预处理了，决定datas是否更新
     if os.path.exists(os.path.join(target_dir, "id_prop_all.json")):
         with open(os.path.join(target_dir, "id_prop_all.json")) as f:
@@ -143,11 +143,3 @@ def split(target_dir, split=[0.8, 0.1, 0.1]):
     train_datas.to_json(os.path.join(target_dir, "id_prop_train.json"), orient="records", force_ascii=True, indent=4)
     val_datas.to_json(os.path.join(target_dir, "id_prop_val.json"), orient="records", force_ascii=True, indent=4)
     test_datas.to_json(os.path.join(target_dir, "id_prop_test.json"), orient="records", force_ascii=True, indent=4)
-
-
-if __name__ == "__main__":
-    prepare_data(
-        "/home/bachelor/gwh/project/crystalProject/DATA/cofs_Methane/structures_primitive",
-        "/home/bachelor/gwh/project/crystalProject/DATA/cofs_Methane/structures_primitive_process",
-        stage="crystalTopo"
-    )
