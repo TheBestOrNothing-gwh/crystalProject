@@ -63,7 +63,7 @@ class init(torch.nn.Module):
 
     def forward(self, x, emb, edge_index):
         j, i = edge_index
-        rbf,_ = emb
+        rbf, _ , _ = emb
         rbf0 = self.act(self.lin_rbf_0(rbf))
         e1 = self.act(self.lin(torch.cat([x[i], x[j], rbf0], dim=-1)))
         e2 = self.lin_rbf_1(rbf) * e1
@@ -129,7 +129,7 @@ class update_e(torch.nn.Module):
     def forward(self, x, emb, triplet_index):
         idx_kj, idx_ji = triplet_index
         rbf0, sbf, t = emb
-        x1,_ = x
+        x1, _ = x
 
         x_ji = self.act(self.lin_ji(x1))
         x_kj = self.act(self.lin_kj(x1))
@@ -244,8 +244,8 @@ class SphereNet(torch.nn.Module):
 
 
     def forward(self, batch_data):
-        v, pos, edges, edges_devide, offsets, offsets_real = batch_data["v"], batch_data["pos"], batch_data["edges"], batch_data["edges_devide"], batch_data["offsets"], batch_data["offsets_real"]
-        dist, edge_index, angle, dihedral_angle, triplet_index = crystal_to_dat(pos, edges, offsets, offsets_real, edges_devide)
+        v, pos, edges, offsets, offsets_real = batch_data["v"], batch_data["pos"], batch_data["edges"], batch_data["offsets"], batch_data["offsets_real"]
+        dist, edge_index, angle, dihedral_angle, triplet_index = crystal_to_dat(pos, edges, offsets, offsets_real)
 
         emb = self.emb(dist, angle, dihedral_angle, triplet_index[0])
 

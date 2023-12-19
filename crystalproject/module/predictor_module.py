@@ -21,11 +21,11 @@ class PreModule(lp.LightningModule):
         conf_backbone = self.hparams["backbone"]
         model_cls = registry.get_model_class(conf_backbone["name"])
         self.backbone = model_cls(**conf_backbone["kwargs"])
-        conf_heads = self.hparams["heads"]
+        conf_predictor = self.hparams["predictor"]
         self.heads = nn.ModuleList(
             [
-                registry.get_head_class(conf_head["name"])(**conf_head["wargs"])
-                for conf_head in conf_heads
+                registry.get_head_class(conf_head["name"])(**conf_head["kwargs"])
+                for conf_head in conf_predictor["heads"]
             ]
         )
     
@@ -55,11 +55,11 @@ class PreModule(lp.LightningModule):
 
     def configure_loss(self):
         self.loss = F.mse_loss
-        self.weight = self.hparams["heads"]["targets"]
+        self.weight = self.hparams["predictor"]["targets"]
             
     def configure_metrics(self):
-        self.maes = dict.fromkeys(self.hparams["heads"]["targets"].keys(), MeanAbsoluteError())
-        self.r2s = dict.fromkeys(self.hparams["heads"]["targets"].keys(), R2Score())
+        self.maes = nn.ModuleDict({target: MeanAbsoluteError() for target in self.hparams["predictor"]["targets"].keys()})
+        self.r2s = nn.ModuleDict({target: R2Score() for target in self.hparams["predictor"]["targets"].keys()})
         
     def forward(self, batch):
         self.backbone(batch)
@@ -70,14 +70,14 @@ class PreModule(lp.LightningModule):
     def training_step(self, batch, batch_idx):
         self(batch)
         out = batch["output"]
-        total_loss = sum([self.weight[target] * self.loss(out[target], batch[target]) for target in self.hparams["heads"]["target"]])
+        total_loss = sum([self.weight[target] * self.loss(out[target], batch[target]) for target in self.hparams["predictor"]["targets"].keys()])
         self.log('train_loss', total_loss, prog_bar=True, batch_size=batch["batch"]["batch_size"])
         return total_loss
     
     def validation_step(self, batch, batch_idx):
         self(batch)
         out = batch["output"]
-        for target in self.hparams["heads"]["target"]:
+        for target in self.hparams["predictor"]["targets"].keys():
             self.maes[target].update(out[target], batch[target])
             self.log(f'val_mae_{target}', self.maes[target], prog_bar=True, batch_size=batch["batch"]["batch_size"])
             self.r2s[target].update(out[target], batch[target])
@@ -86,7 +86,7 @@ class PreModule(lp.LightningModule):
     def test_step(self, batch, batch_idx):
         self(batch)
         out = batch["output"]
-        for target in self.hparams["heads"]["target"]:
+        for target in self.hparams["predictor"]["targets"].keys():
             self.maes[target].update(out[target], batch[target])
             self.log(f'test_mae_{target}', self.maes[target], prog_bar=True, batch_size=batch["batch"]["batch_size"])
             self.r2s[target].update(out[target], batch[target])

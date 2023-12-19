@@ -36,9 +36,6 @@ class TopoNet(nn.Module):
         self.embedding_atom = nn.Linear(
             self.atom_emb.get_dim(), atom_hidden_channels, bias=False
         )
-        self.embedding_cluster = nn.Linear(
-            atom_hidden_channels, cluster_hidden_channels, bias=False
-        )
         model_cls = registry.get_model_class(atom_graph["name"])
         self.atom_graph = model_cls(hidden_channels=atom_hidden_channels, **atom_graph["kwargs"])
         model_cls = registry.get_model_class(cluster_graph["name"])
@@ -60,7 +57,6 @@ class TopoNet(nn.Module):
         # 读出得到原子簇的表示
         inter = batch_data["cluster_graph"]["inter"]
         cluster_fea = scatter(atom_fea[inter[0]], inter[1], dim=0, reduce=self.atom_cluster_reduce)
-        cluster_fea = self.embedding_cluster(cluster_fea)
         batch_data["cluster_graph"]["v"] = cluster_fea
         cluster_fea = self.cluster_graph(batch_data["cluster_graph"])
         # 读出粗粒度图

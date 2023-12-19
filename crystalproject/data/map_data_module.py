@@ -1,4 +1,6 @@
 import lightning.pytorch as lp
+from torch.utils.data import DataLoader
+
 
 from crystalproject.utils.registry import registry
 from crystalproject.data.dataset import *
@@ -27,16 +29,16 @@ class MapDataModule(lp.LightningDataModule):
                     stage="predict", **conf_dataset["kwargs"])
 
     def train_dataloader(self):
-        return CudaDataLoader(MultiEpochsDataLoader(self.train_dataset, shuffle=True, collate_fn=self.train_dataset.collate, **self.hparams["dataloader"]))
+        return DataLoader(self.train_dataset, shuffle=True, collate_fn=self.train_dataset.collate, **self.hparams["dataloader"])
 
     def val_dataloader(self):
-        return CudaDataLoader(MultiEpochsDataLoader(self.val_dataset, shuffle=False, collate_fn=self.train_dataset.collate, **self.hparams["dataloader"]))
+        return DataLoader(self.val_dataset, shuffle=False, collate_fn=self.train_dataset.collate, **self.hparams["dataloader"])
 
     def test_dataloader(self):
-        return CudaDataLoader(MultiEpochsDataLoader(self.test_dataset, shuffle=False, collate_fn=self.train_dataset.collate, **self.hparams["dataloader"]))
+        return DataLoader(self.test_dataset, shuffle=False, collate_fn=self.train_dataset.collate, **self.hparams["dataloader"])
 
     def predict_dataloader(self):
-        return CudaDataLoader(MultiEpochsDataLoader(self.predict_dataset, shuffle=False, collate_fn=self.train_dataset.collate, **self.hparams["dataloader"]))
+        return DataLoader(self.predict_dataset, shuffle=False, collate_fn=self.train_dataset.collate, **self.hparams["dataloader"])
 
 
 if __name__ == "__main__":

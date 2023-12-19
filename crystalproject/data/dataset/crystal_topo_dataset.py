@@ -68,7 +68,7 @@ class CrystalTopoDataset(Dataset):
         data["underling_network"]["rvecs"] = torch.tensor(data["underling_network"]["rvecs"], dtype=torch.float32)
 
         for descriptor in self.descriptor_index:
-            data[descriptor] = torch.tensor(value[descriptor], dtype=torch.float32).unsqueeze(dim=0) if value[descriptor].size > 1 else torch.tensor([value[descriptor]], dtype=torch.float32).unsqueeze(dim=0)
+            data[descriptor] = torch.tensor(value[descriptor], dtype=torch.float32).unsqueeze(0) if value[descriptor].size > 1 else torch.tensor([value[descriptor]], dtype=torch.float32).unsqueeze(0)
 
         return data
 
@@ -87,7 +87,7 @@ class CrystalTopoDataset(Dataset):
                 batch_data["atom_radius_graph"]["pos"],
                 batch_data["atom_radius_graph"]["offsets_real"],
                 batch_data["atom_radius_graph"]["offsets"],
-                batch_data["atom_radius_graph"]["rvecs"],
+                batch_data["atom_radius_graph"]["rvecs"]
             ),
             (
                 batch_data["atom_graph"]["numbers"],
@@ -95,7 +95,7 @@ class CrystalTopoDataset(Dataset):
                 batch_data["atom_graph"]["pos"],
                 batch_data["atom_graph"]["offsets_real"],
                 batch_data["atom_graph"]["offsets"],
-                batch_data["atom_graph"]["rvecs"],
+                batch_data["atom_graph"]["rvecs"]
             ),
             (
                 batch_data["cluster_graph"]["inter"],
@@ -103,7 +103,7 @@ class CrystalTopoDataset(Dataset):
                 batch_data["cluster_graph"]["pos"],
                 batch_data["cluster_graph"]["offsets_real"],
                 batch_data["cluster_graph"]["offsets"],
-                batch_data["cluster_graph"]["rvecs"],
+                batch_data["cluster_graph"]["rvecs"]
             ),
             (
                 batch_data["underling_network"]["inter"],
@@ -111,7 +111,7 @@ class CrystalTopoDataset(Dataset):
                 batch_data["underling_network"]["pos"],
                 batch_data["underling_network"]["offsets_real"],
                 batch_data["underling_network"]["offsets"],
-                batch_data["underling_network"]["rvecs"],
+                batch_data["underling_network"]["rvecs"]
             ),
             (
                 batch_data["batch"]["atom"],
@@ -120,12 +120,12 @@ class CrystalTopoDataset(Dataset):
             )
         ) = (([], [], [], [], [], []), ([], [], [], [], [], []), ([], [], [], [], [], []), ([], [], [], [], [], []), ([], [], []))
         batch_data.update(
-            dict.fromkeys(self.descriptor_index, [])
+            {descriptor: [] for descriptor in self.descriptor_index}
         )
         base_atom_idx = 0
         base_cluster_idx = 0
         base_network_idx = 0
-        batch_data["batch"]["batch_size"] = dataset_list.size()
+        batch_data["batch"]["batch_size"] = len(dataset_list)
         for i, data in enumerate(dataset_list):
             n_atom = data["atom_graph"]["pos"].shape[0]
             n_cluster = data["cluster_graph"]["pos"].shape[0]
