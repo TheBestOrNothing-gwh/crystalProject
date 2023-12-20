@@ -27,11 +27,30 @@ def func_topo(root_dir, target_dir, row, all_list, radius=5.0, max_nbr_num=12):
         return
     process_data = create_crystal_topo(
         os.path.join(root_dir, row["name"]+".cif"),
+        ["atom_radius_graph", "atom_graph", "cluster_graph", "underling_network"],
         radius,
         max_nbr_num,
         row["use_bond_types"],
         row["bond_types"],
         row["linker_types"],
+    )
+    f_save = open(
+        os.path.join(target_dir, row["name"]+".pkl"),
+        "wb"
+    )
+    pickle.dump(process_data, f_save)
+    f_save.close()
+    all_list.append({"name": row["name"]})
+
+def func_radius(root_dir, target_dir, row, all_list, radius=5.0, max_nbr_num=12):
+    if os.path.exists(os.path.join(target_dir, row["name"]+".pkl")):
+        all_list.append({"name": row["name"]})
+        return
+    process_data = create_crystal_topo(
+        os.path.join(root_dir, row["name"]+".cif"),
+        ["atom_radius_graph"],
+        radius,
+        max_nbr_num,
     )
     f_save = open(
         os.path.join(target_dir, row["name"]+".pkl"),
@@ -71,6 +90,14 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, ma
             for _, row in datas.iterrows():
                 pool.apply_async(
                     func_topo,
+                    (root_dir, os.path.join(target_dir, "all"), row, all_list, radius, max_nbr_num),
+                    callback=update,
+                    error_callback=err_call_back
+                )
+        case "crystalRadiusGraph":
+            for _, row in datas.iterrows():
+                pool.apply_async(
+                    func_radius,
                     (root_dir, os.path.join(target_dir, "all"), row, all_list, radius, max_nbr_num),
                     callback=update,
                     error_callback=err_call_back

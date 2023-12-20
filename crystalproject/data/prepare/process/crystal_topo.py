@@ -37,7 +37,8 @@ def divide_graphs(system, use_bond_types=False, bond_types=[], linker_types=[]):
     return partitions
 
 
-def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=False, bond_types=[], linker_types=[]):
+def create_crystal_topo(cif_path, used_topos=["atom_radius_graph"], radius=5.0, max_num_nbr=12, use_bond_types=False, bond_types=[], linker_types=[]):
+    topo = {}
     structure = Structure.from_file(cif_path)
     rvecs = structure.lattice._matrix
     numbers = np.array(structure.atomic_numbers)
@@ -47,13 +48,7 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
     frac_pos = np.dot(pos, cell.gvecs.T)
     rvecs = rvecs * angstrom
     pos = np.dot(frac_pos, rvecs)
-    system = System(pos=pos, numbers=numbers, rvecs=rvecs)
-    if system.bonds is None:
-        system.detect_bonds()
-    # 合法性检查
-    check_period_connection(system, os.path.basename(cif_path).split(".")[0])
-    check_valence(system, os.path.basename(cif_path).split(".")[0])
-    check_isolated(system, os.path.basename(cif_path).split(".")[0])
+    
     # region 计算原子半径图
     sources, targets, offsets, distances = structure.get_neighbor_list(r=radius)
     sources_2, targets_2, offsets_2 = [], [], []
@@ -79,7 +74,7 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
     edges = np.array([np.concatenate(sources_2, axis=0), np.concatenate(targets_2, axis=0)])
     offsets = np.concatenate(offsets_2, axis=0)
     offsets_real = np.dot(offsets, rvecs)
-    atom_radius_graph = {
+    topo["atom_radius_graph"] = {
         "numbers": numbers,
         "edges": edges,
         "pos": pos,
@@ -89,6 +84,15 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
     }
     # endregion
 
+    if "atom_graph" not in used_topos:
+        return topo
+    system = System(pos=pos, numbers=numbers, rvecs=rvecs)
+    if system.bonds is None:
+        system.detect_bonds()
+    # 合法性检查
+    check_period_connection(system, os.path.basename(cif_path).split(".")[0])
+    check_valence(system, os.path.basename(cif_path).split(".")[0])
+    check_isolated(system, os.path.basename(cif_path).split(".")[0])
     # region计算原子图
     # 将bonds扩充为原来的两倍，并且计算offset，得到edges和offset
     edges = []
@@ -105,7 +109,7 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
         offsets.append(-offset)
     edges, offsets = np.array(edges).T, np.array(offsets)
     offsets_real = np.dot(offsets, rvecs)
-    atom_graph = {
+    topo["atom_graph"] = {
         "numbers": numbers,
         "edges": edges,
         "pos": pos,
@@ -115,6 +119,8 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
     }
     # endregion
 
+    if "cluster_graph" not in used_topos:
+        return topo
     # region 计算粗粒度图，不仅要得到粗粒度图的表示，还需要得到vertex到supervertex的关系矩阵，这部分是关键
     partitions = divide_graphs(system, use_bond_types, bond_types, linker_types)
     cc = CombinatorialComplex()
@@ -164,7 +170,7 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
         offsets.append(offset)
     offsets = np.array(offsets)
     offsets_real = np.dot(offsets, rvecs)
-    cluster_graph = {
+    topo["cluster_graph"] = {
         "inter": inter,
         "edges": edges,
         "pos": pos,
@@ -173,6 +179,9 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
         "rvecs": rvecs,
     }
     # endregion
+
+    if "underling_network" not in used_topos:
+        return topo
     # region底层网络图，再粗粒度图上再做一次操作，将所有度为2的superVerte转换为一条边，从而作为底层网络中的边处理。
     # 首先，检索出所有出度为2的点，然后再将这些点去掉，去掉后，原来和这个点相连的两个点之间将会连接。
     pos, edges, offsets = pos, edges, offsets
@@ -212,7 +221,7 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
     edges = np.vectorize(map.get)(edges)
     inter = np.array([[i, j] for i, j in map.items()]).T
     offsets_real = np.dot(offsets, rvecs)
-    underling_network = {
+    topo["underling_network"] = {
         "inter": inter,
         "edges": edges,
         "pos": pos,
@@ -222,23 +231,4 @@ def create_crystal_topo(cif_path, radius=8.0, max_num_nbr=12, use_bond_types=Fal
     }
     # endregion
     
-    return {
-        "atom_radius_graph": atom_radius_graph,
-        "atom_graph": atom_graph,
-        "cluster_graph": cluster_graph,
-        "underling_network": underling_network,
-    }
-
-
-if __name__ == "__main__":
-    data = create_crystal_topo("/home/gwh/project/crystalProject/DATA/cofs_Methane/error/linker110_CO_linker74_NH_lcv_relaxed.cif",
-                            use_bond_types=True,
-                            bond_types=["amide"],
-                            linker_types=[])
-    # print(-1 in data["atom_graph"]["offsets"])
-    # print(data["cluster_graph"]["inter"])
-    # print(data["cluster_graph"]["edges"])
-    # print(data["cluster_graph"]["offsets"])
-    # print(data["underling_network"]["edges"])
-    # print(data["underling_network"]["pos"])
-    # print(data["underling_network"]["offsets"])
+    return topo
