@@ -80,8 +80,6 @@ class PreModule(lp.LightningModule):
         for target in self.hparams["predictor"]["targets"].keys():
             self.maes[target].update(out[target], batch[target])
             self.log(f'val_mae_{target}', self.maes[target], prog_bar=True, batch_size=batch["batch"]["batch_size"])
-            self.r2s[target].update(out[target], batch[target])
-            self.log(f'val_r2_{target}', self.r2s[target], prog_bar=True, batch_size=batch["batch"]["batch_size"])
     
     def test_step(self, batch, batch_idx):
         self(batch)

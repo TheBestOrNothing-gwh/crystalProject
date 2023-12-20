@@ -162,7 +162,7 @@ class CrystalTopoDataset(Dataset):
             batch_data["batch"]["atom"].append(torch.full((n_atom,), i))
             batch_data["batch"]["cluster"].append(torch.full((n_cluster,), i))
             batch_data["batch"]["network"].append(torch.full((n_network,), i))
-            
+
             for descriptor in self.descriptor_index:
                 batch_data[descriptor].append(data[descriptor])
 
