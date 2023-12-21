@@ -4,7 +4,7 @@ from torch_sparse import SparseTensor
 from math import pi
 
 
-def crystal_to_dat(pos, edges, offsets, offsets_real):
+def crystal_to_dat(pos, edges, offsets, offsets_real, use_torsion=False):
     # Calculate distances. # number of edges
     dist = (pos[edges[1]] - pos[edges[0]] + offsets_real).norm(dim=-1)
 
@@ -25,7 +25,8 @@ def crystal_to_dat(pos, edges, offsets, offsets_real):
     a = (p_jk * p_ji).sum(dim=-1)
     b = torch.cross(p_jk, p_ji).norm(dim=-1)
     angle = torch.atan2(b, a)
-
+    if not use_torsion:
+        return dist, edges, angle, triplets
     # Calculate torsion
     value = torch.arange(triplets.shape[1], device=triplets.device)
     tmp = SparseTensor(row=triplets[0], col=triplets[1], value=value, sparse_sizes=(edges.shape[1], edges.shape[1]))

@@ -244,7 +244,7 @@ class DimeNetPP(torch.nn.Module):
 
     def forward(self, batch_data):
         v, pos, edges, offsets, offsets_real = batch_data["v"], batch_data["pos"], batch_data["edges"], batch_data["offsets"], batch_data["offsets_real"]
-        dist, edge_index, angle, triplet_index = crystal_to_dat(pos, edges, offsets, offsets_real)
+        dist, edge_index, angle, triplet_index = crystal_to_dat(pos, edges, offsets, offsets_real, use_torsion=False)
 
         emb = self.emb(dist, angle, triplet_index[0])
 

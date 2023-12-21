@@ -18,15 +18,11 @@ module_config = {
             "atom_graph":{
                 "name": "cgcnn",
                 "kwargs":{
-                    "edge_embedding":{
-                        "dmin": 1.0,
-                        "dmax": 2.0,
-                        "step": 0.1,
-                    },
-                    "num_layers": 3
+                    "num_layers": 3,
+                    "edge_embedding": {"dmin": 0.0, "dmax": 5.0, "step": 0.2},
                 }
             },
-            "cluster_hidden_channels": 256,
+            "cluster_hidden_channels": 128,
             "cluster_graph":{
                 "name": "gcn",
                 "kwargs":{
@@ -36,35 +32,37 @@ module_config = {
             "underling_network":{
                 "name": "cgcnn",
                 "kwargs":{
-                    "edge_embedding":{
-                        "dmin": 10.0,
-                        "dmax": 20.0,
-                        "step": 1.0,
-                    },
-                    "num_layers": 3
+                    "num_layers": 3,
+                    "edge_embedding": {"dmin": 0.0, "dmax": 15.0, "step": 0.2},
                 }
             }
         }
     },
-    "head":{
-        "name": "mlphead",
-        "kwargs":{
-            "in_channels": 256,
-            "hidden_channels": 256,
-            "out_channels": 1,
-            "n_h": 3,
-        }
+    "predictor":{
+        "targets": {"absolute methane uptake high P [v STP/v]":0.5, "absolute methane uptake low P [v STP/v]":0.5},
+        "heads":[
+            {
+                "name": "regression",
+                "kwargs":{
+                    "in_channels": 137,
+                    "out_channels": 2,
+                    "targets": ["absolute methane uptake high P [v STP/v]", "absolute methane uptake low P [v STP/v]"],
+                    "descriptors": ["atom_graph_embedding", "vol", "rho", "di", "df", "dif", "asa", "av", "nasa", "nav"]
+                }
+            },
+        ]
     },
     "optimizers":{
         "name": "Adam",
         "kwargs":{
-            
+            "lr":5e-4,
+            "weight_decay": 0.1
         },
     },
     "scheduler":{
         "name": "StepLR",
         "kwargs":{
-            "step_size": 500
+            "step_size": 500,
         },
     },
     "loss":{
@@ -72,10 +70,6 @@ module_config = {
     },
     "criterion":{
         "name": "mae",
-    },
-    "normalize":{
-        "mean": 0,
-        "std": 1,
     }
 }
 data_config = {
@@ -83,12 +77,11 @@ data_config = {
         "name": "CrystalTopoDataset",
         "kwargs":{
             "root_dir": "/home/gwh/project/crystalProject/DATA/cofs_Methane/process",
-            "target_index": ["absolute methane uptake high P [v STP/v]"],
-            "descriptor_index": ["dimensions"]
+            "descriptor_index": ["absolute methane uptake high P [v STP/v]", "absolute methane uptake low P [v STP/v]", "vol", "rho", "di", "df", "dif", "asa", "av", "nasa", "nav"],
         }
     },
     "dataloader":{
-        "batch_size": 4,
+        "batch_size": 16,
         "num_workers": 1,
         "pin_memory": True,
     }
@@ -97,15 +90,11 @@ trainer_config = {
     "max_epochs": 500,
     "min_epochs": 100
 }
-config = {
-    "root_dir": "",
-    "target": "CH4 High P"
-}
 
 
 # 回调函数
 early_stop = EarlyStopping(
-    monitor="val_criterion",
+    monitor="val_mae",
     mode="min",
 )
 
@@ -113,7 +102,7 @@ model_checkpoint = ModelCheckpoint(
     dirpath="checkpoints",
     filename="model-{epoch:02d}-{val_criterion:.2f}",
     save_top_k=3,
-    monitor="val_criterion",
+    monitor="val_mae_absolute methane uptake high P [v STP/v]",
     mode="min"
 )
 
@@ -121,10 +110,7 @@ model_checkpoint = ModelCheckpoint(
 # 主流程
 module = PreModule(**module_config)
 data_module = MapDataModule(**data_config)
-trainer = lp.Trainer(**trainer_config, callbacks=[early_stop, model_checkpoint], devices=[0])
+trainer = lp.Trainer(**trainer_config, devices=[2])
 trainer.fit(module, data_module)
-save_path = trainer.default_root_dir
-config["root_dir"] = save_path
-print(save_path)
-trainer.test(module, data_module, config)
+trainer.test(module, data_module)
 

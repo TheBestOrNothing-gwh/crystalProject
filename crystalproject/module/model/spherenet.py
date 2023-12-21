@@ -48,9 +48,13 @@ class ResidualLayer(torch.nn.Module):
         return x + self.act(self.lin2(self.act(self.lin1(x))))
 
 class init(torch.nn.Module):
-    def __init__(self, num_radial, hidden_channels, act=swish):
+    def __init__(self, num_radial, hidden_channels, act=swish, use_node_features=True):
         super(init, self).__init__()
         self.act = act
+        self.use_node_features = use_node_features
+        if not self.use_node_features:
+            self.node_embedding = nn.Parameter(torch.empty((hidden_channels, )))
+            nn.init.normal_(self.node_embedding)
         self.lin_rbf_0 = Linear(num_radial, hidden_channels)
         self.lin = Linear(3 * hidden_channels, hidden_channels)
         self.lin_rbf_1 = nn.Linear(num_radial, hidden_channels, bias=False)
@@ -62,6 +66,8 @@ class init(torch.nn.Module):
         glorot_orthogonal(self.lin_rbf_1.weight, scale=2.0)
 
     def forward(self, x, emb, edge_index):
+        if not self.use_node_features:
+            x = self.node_embedding[None, :].expand(x.shape[0], -1)
         j, i = edge_index
         rbf, _ , _ = emb
         rbf0 = self.act(self.lin_rbf_0(rbf))
@@ -216,12 +222,13 @@ class SphereNet(torch.nn.Module):
         basis_emb_size_dist=8, basis_emb_size_angle=8, basis_emb_size_torsion=8, out_emb_channels=256,
         num_spherical=7, num_radial=6, envelope_exponent=5,
         num_before_skip=1, num_after_skip=2, num_output_layers=3,
-        act=swish):
+        act=swish, use_node_features=True):
         super(SphereNet, self).__init__()
 
         self.cutoff = cutoff
+        self.use_node_features = use_node_features
         
-        self.init_e = init(num_radial, hidden_channels, act)
+        self.init_e = init(num_radial, hidden_channels, act, use_node_features=self.use_node_features)
         self.init_v = update_v(hidden_channels, out_emb_channels, num_output_layers, act)
         self.emb = emb(num_spherical, num_radial, self.cutoff, envelope_exponent)
 
@@ -245,7 +252,7 @@ class SphereNet(torch.nn.Module):
 
     def forward(self, batch_data):
         v, pos, edges, offsets, offsets_real = batch_data["v"], batch_data["pos"], batch_data["edges"], batch_data["offsets"], batch_data["offsets_real"]
-        dist, edge_index, angle, dihedral_angle, triplet_index = crystal_to_dat(pos, edges, offsets, offsets_real)
+        dist, edge_index, angle, dihedral_angle, triplet_index = crystal_to_dat(pos, edges, offsets, offsets_real, use_torsion=True)
 
         emb = self.emb(dist, angle, dihedral_angle, triplet_index[0])
 

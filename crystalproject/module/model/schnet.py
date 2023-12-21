@@ -83,7 +83,7 @@ class SchNet(torch.nn.Module):
             num_gaussians (int, optional): The number of gaussians :math:`\mu`. (default: :obj:`50`)
             cutoff (float, optional): Cutoff distance for interatomic interactions. (default: :obj:`10.0`).
     """
-    def __init__(self, cutoff=5.0, num_layers=6, hidden_channels=128, num_filters=128, num_gaussians=50):
+    def __init__(self, cutoff=10.0, num_layers=6, hidden_channels=128, num_filters=128, num_gaussians=50):
         super(SchNet, self).__init__()
 
         self.cutoff = cutoff

@@ -2,7 +2,7 @@ import torch.nn as nn
 from torch_scatter import scatter
 
 from crystalproject.utils.registry import registry
-from crystalproject.module.utils.atom_embedding import AtomEmbedding
+from crystalproject.module.utils.atom_embedding import AtomEmbedding, AtomEmbeddingNoPriori
 
 
 # 完全体拓扑网络
@@ -33,9 +33,6 @@ class TopoNet(nn.Module):
         self.cluster_network_reduce = cluster_network_reduce
         self.reduce = reduce
         self.atom_emb = AtomEmbedding(**atom_embedding)
-        self.embedding_atom = nn.Linear(
-            self.atom_emb.get_dim(), atom_hidden_channels, bias=False
-        )
         model_cls = registry.get_model_class(atom_graph["name"])
         self.atom_graph = model_cls(hidden_channels=atom_hidden_channels, **atom_graph["kwargs"])
         model_cls = registry.get_model_class(cluster_graph["name"])
@@ -49,7 +46,6 @@ class TopoNet(nn.Module):
         """
         # 原子嵌入
         atom_fea = self.atom_emb(batch_data["atom_graph"]["numbers"])
-        atom_fea = self.embedding_atom(atom_fea)
         batch_data["atom_graph"]["v"] = atom_fea
         atom_fea = self.atom_graph(batch_data["atom_graph"])
         # 读出原子图
