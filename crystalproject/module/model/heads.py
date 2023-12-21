@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+from torch_geometric.nn.inits import glorot_orthogonal
+
 from crystalproject.utils.registry import registry
 
 
@@ -31,10 +33,14 @@ class Linearhead(nn.Module):
         self.lin = nn.Linear(in_channels, out_channels, bias=False)
         self.targets = targets
         self.descriptors = descriptors
+        self.reset_parameters()
+    
+    def reset_parameters(self):
+        glorot_orthogonal(self.lin.weight, scale=2.0)
 
     def forward(self, batch_data):
         input = torch.cat([batch_data[descriptor] for descriptor in self.descriptors], dim=1)
         out = self.lin(input)
         for i, target in enumerate(self.targets):
-            batch_data["output"][target] = out[:, [i]]    
+            batch_data["output"][target] = out[:, [i]]
         
