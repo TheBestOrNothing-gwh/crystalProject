@@ -162,7 +162,7 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, ma
     return datas
 
 
-def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", radius=5.0, max_num_nbr=12, processes=24):
+def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], seed=123, stage="simple", radius=5.0, max_num_nbr=12, processes=24):
     with open(os.path.join(root_dir, "id_prop.json")) as f:
         datas = json.load(f)
     datas = pd.json_normalize(datas)
@@ -180,31 +180,17 @@ def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", ra
     datas = pd.merge(datas, new_datas, how="inner", on="name")
     datas.to_json(os.path.join(target_dir, "id_prop_all.json"), orient="records", force_ascii=True, indent=4)
     if len(split) != 0:
-        assert (
-            abs(split[0] + split[1] + split[2] - 1) <= 1e-5
-        ), "train + val + test == 1"
-        # random.seed(2023)
-        # 设置好pandas的随机数，让每一次划分数据集都是相同的
-        datas = datas.sample(frac=1.0)
-        # 划分数据集
-        split_index_1, split_index_2 = int(datas.shape[0] * split[0]), int(datas.shape[0] * (split[0] + split[1]))
-        train_datas = datas.iloc[:split_index_1, :]
-        val_datas = datas.iloc[split_index_1:split_index_2, :]
-        test_datas = datas.iloc[split_index_2:, :]
-        train_datas.to_json(os.path.join(target_dir, "id_prop_train.json"), orient="records", force_ascii=True, indent=4)
-        val_datas.to_json(os.path.join(target_dir, "id_prop_val.json"), orient="records", force_ascii=True, indent=4)
-        test_datas.to_json(os.path.join(target_dir, "id_prop_test.json"), orient="records", force_ascii=True, indent=4)
-
-def split(target_dir, split=[0.8, 0.1, 0.1]):
+        split(target_dir, split, seed)
+        
+def split(target_dir, split=[0.8, 0.1, 0.1], seed=123):
     assert (
             abs(split[0] + split[1] + split[2] - 1) <= 1e-5
         ), "train + val + test == 1"
-    # random.seed(2023)
     # 设置好pandas的随机数，让每一次划分数据集都是相同的
     with open(os.path.join(target_dir, "id_prop_all.json")) as f:
         datas = json.load(f)
     datas = pd.json_normalize(datas)
-    datas = datas.sample(frac=1.0)
+    datas = datas.sample(frac=1.0, random_state=seed)
     # 划分数据集
     split_index_1, split_index_2 = int(datas.shape[0] * split[0]), int(datas.shape[0] * (split[0] + split[1]))
     train_datas = datas.iloc[:split_index_1, :]
