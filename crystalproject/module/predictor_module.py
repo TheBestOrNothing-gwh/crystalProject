@@ -71,7 +71,7 @@ class PreModule(lp.LightningModule):
         self(batch)
         out = batch["output"]
         total_loss = sum([self.weight[target] * self.loss(out[target], batch[target]) for target in self.hparams["predictor"]["targets"].keys()])
-        self.log('train_loss', total_loss, prog_bar=True, batch_size=batch["batch"]["batch_size"])
+        self.log('train_loss', total_loss, prog_bar=True, batch_size=batch["batch_size"])
         return total_loss
     
     def validation_step(self, batch, batch_idx):
@@ -79,13 +79,13 @@ class PreModule(lp.LightningModule):
         out = batch["output"]
         for target in self.hparams["predictor"]["targets"].keys():
             self.maes[target].update(out[target], batch[target])
-            self.log(f'val_mae_{target}', self.maes[target], prog_bar=True, batch_size=batch["batch"]["batch_size"])
+            self.log(f'val_mae_{target}', self.maes[target], prog_bar=True, batch_size=batch["batch_size"])
     
     def test_step(self, batch, batch_idx):
         self(batch)
         out = batch["output"]
         for target in self.hparams["predictor"]["targets"].keys():
             self.maes[target].update(out[target], batch[target])
-            self.log(f'test_mae_{target}', self.maes[target], prog_bar=True, batch_size=batch["batch"]["batch_size"])
+            self.log(f'test_mae_{target}', self.maes[target], prog_bar=True, batch_size=batch["batch_size"])
             self.r2s[target].update(out[target], batch[target])
-            self.log(f'test_r2_{target}', self.r2s[target], prog_bar=True, batch_size=batch["batch"]["batch_size"])
+            self.log(f'test_r2_{target}', self.r2s[target], prog_bar=True, batch_size=batch["batch_size"])

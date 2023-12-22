@@ -21,18 +21,25 @@ def func_simple(root_dir, target_dir, row, all_list):
         )
     all_list.append({"name": row["name"]})
 
-def func_topo(root_dir, target_dir, row, all_list, radius=5.0, max_nbr_num=12):
+def func_topo(root_dir, target_dir, row, all_list, radius=5.0, max_num_nbr=12):
     if os.path.exists(os.path.join(target_dir, row["name"]+".pkl")):
         all_list.append({"name": row["name"]})
         return
+    config = {
+        "used_topos":["atom_radius_graph", "atom_bond_graph", "high_order"],
+        "atom_radius_graph":{
+            "radius": radius,
+            "max_num_nbr": max_num_nbr
+        },
+        "high_order":{
+            "use_bond_types": row["use_bond_types"],
+            "bond_types": row["bond_types"],
+            "linker_types": row["linker_types"]
+        }
+    }
     process_data = create_crystal_topo(
         os.path.join(root_dir, row["name"]+".cif"),
-        ["atom_radius_graph", "atom_graph", "cluster_graph", "underling_network"],
-        radius,
-        max_nbr_num,
-        row["use_bond_types"],
-        row["bond_types"],
-        row["linker_types"],
+        **config
     )
     f_save = open(
         os.path.join(target_dir, row["name"]+".pkl"),
@@ -42,15 +49,43 @@ def func_topo(root_dir, target_dir, row, all_list, radius=5.0, max_nbr_num=12):
     f_save.close()
     all_list.append({"name": row["name"]})
 
-def func_radius(root_dir, target_dir, row, all_list, radius=5.0, max_nbr_num=12):
+def func_radius(root_dir, target_dir, row, all_list, radius=5.0, max_num_nbr=12):
     if os.path.exists(os.path.join(target_dir, row["name"]+".pkl")):
         all_list.append({"name": row["name"]})
         return
+    config = {
+        "used_topos": ["atom_radius_graph"],
+        "atom_radius_graph":{
+            "radius": radius,
+            "max_num_nbr": max_num_nbr
+        }
+    }
     process_data = create_crystal_topo(
         os.path.join(root_dir, row["name"]+".cif"),
-        ["atom_radius_graph"],
-        radius,
-        max_nbr_num,
+        **config
+    )
+    f_save = open(
+        os.path.join(target_dir, row["name"]+".pkl"),
+        "wb"
+    )
+    pickle.dump(process_data, f_save)
+    f_save.close()
+    all_list.append({"name": row["name"]})
+
+def func_atom_graph(root_dir, target_dir, row, all_list, radius=5.0, max_num_nbr=12):
+    if os.path.exists(os.path.join(target_dir, row["name"]+".pkl")):
+        all_list.append({"name": row["name"]})
+        return
+    config = {
+        "used_topos": ["atom_radius_graph", "atom_bond_graph"],
+        "atom_radius_graph":{
+            "radius": radius,
+            "max_num_nbr": max_num_nbr
+        }
+    }
+    process_data = create_crystal_topo(
+        os.path.join(root_dir, row["name"]+".cif"),
+        **config
     )
     f_save = open(
         os.path.join(target_dir, row["name"]+".pkl"),
@@ -70,7 +105,7 @@ def func_RACs(root_dir, row, all_list):
     process_data["name"] = row["name"]
     all_list.append(process_data)
 
-def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, max_nbr_num=12, processes=24):
+def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, max_num_nbr=12, processes=24):
     pool = Pool(processes=processes)
     manager = Manager()
     all_list = manager.list()
@@ -90,7 +125,7 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, ma
             for _, row in datas.iterrows():
                 pool.apply_async(
                     func_topo,
-                    (root_dir, os.path.join(target_dir, "all"), row, all_list, radius, max_nbr_num),
+                    (root_dir, os.path.join(target_dir, "all"), row, all_list, radius, max_num_nbr),
                     callback=update,
                     error_callback=err_call_back
                 )
@@ -98,7 +133,15 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, ma
             for _, row in datas.iterrows():
                 pool.apply_async(
                     func_radius,
-                    (root_dir, os.path.join(target_dir, "all"), row, all_list, radius, max_nbr_num),
+                    (root_dir, os.path.join(target_dir, "all"), row, all_list, radius, max_num_nbr),
+                    callback=update,
+                    error_callback=err_call_back
+                )
+        case "crystalGraph":
+            for _, row in datas.iterrows():
+                pool.apply_async(
+                    func_atom_graph,
+                    (root_dir, os.path.join(target_dir, "all"), row, all_list, radius, max_num_nbr),
                     callback=update,
                     error_callback=err_call_back
                 )
@@ -119,7 +162,7 @@ def pre_control(root_dir, target_dir, datas, stage="crystalTopo", radius=5.0, ma
     return datas
 
 
-def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", radius=5.0, max_nbr_num=12, processes=24):
+def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", radius=5.0, max_num_nbr=12, processes=24):
     with open(os.path.join(root_dir, "id_prop.json")) as f:
         datas = json.load(f)
     datas = pd.json_normalize(datas)
@@ -127,7 +170,7 @@ def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], stage="simple", ra
     if not os.path.exists(os.path.join(target_dir, "all")):
         os.makedirs(os.path.join(target_dir, "all"))
     new_datas = pre_control(root_dir, target_dir, datas.iloc[:, :],
-                stage=stage, radius=radius, max_nbr_num=max_nbr_num, processes=processes)
+                stage=stage, radius=radius, max_num_nbr=max_num_nbr, processes=processes)
     # 是否做过预处理了，决定datas是否更新
     if os.path.exists(os.path.join(target_dir, "id_prop_all.json")):
         with open(os.path.join(target_dir, "id_prop_all.json")) as f:
