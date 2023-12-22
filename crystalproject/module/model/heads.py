@@ -28,7 +28,7 @@ class MLPhead(nn.Module):
 @registry.register_head("lin")
 class Linearhead(nn.Module):
     def __init__(self, in_channels=256, out_channels=1, targets=[], descriptors=[]):
-        super(MLPhead, self).__init__()
+        super(Linearhead, self).__init__()
         assert len(targets) == out_channels, "输出维度必须等于目标数量"
         self.lin = nn.Linear(in_channels, out_channels, bias=False)
         self.targets = targets
