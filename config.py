@@ -99,7 +99,6 @@ early_stop = EarlyStopping(
 )
 
 model_checkpoint = ModelCheckpoint(
-    dirpath="checkpoints",
     filename="model-{epoch:02d}-{val_criterion:.2f}",
     save_top_k=3,
     monitor="val_mae_absolute methane uptake high P [v STP/v]",
