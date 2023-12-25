@@ -13,11 +13,11 @@ class PreModule(lp.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
         self.save_hyperparameters()
-        self.configure_model()
+        self.config_model()
         self.configure_loss()
         self.configure_metrics()
 
-    def configure_model(self):
+    def config_model(self):
         conf_backbone = self.hparams["backbone"]
         model_cls = registry.get_model_class(conf_backbone["name"])
         self.backbone = model_cls(**conf_backbone["kwargs"])
