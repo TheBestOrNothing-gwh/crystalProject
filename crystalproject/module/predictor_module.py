@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 import torch.optim.lr_scheduler as lrs
 import lightning.pytorch as lp
-from torchmetrics.regression import MeanAbsoluteError, R2Score
+from torchmetrics.regression import MeanAbsoluteError, R2Score, MeanSquaredError
 
 from crystalproject.utils.registry import registry
 from crystalproject.module.model import *
@@ -58,6 +58,7 @@ class PreModule(lp.LightningModule):
         self.weight = self.hparams["predictor"]["targets"]
             
     def configure_metrics(self):
+        self.mses = nn.ModuleDict({target: MeanSquaredError() for target in self.hparams["predictor"]["targets"].keys()})
         self.maes = nn.ModuleDict({target: MeanAbsoluteError() for target in self.hparams["predictor"]["targets"].keys()})
         self.r2s = nn.ModuleDict({target: R2Score() for target in self.hparams["predictor"]["targets"].keys()})
         
@@ -70,22 +71,25 @@ class PreModule(lp.LightningModule):
     def training_step(self, batch, batch_idx):
         self(batch)
         out = batch["output"]
+        assert torch.isnan(out["e_form"]).sum() == 0, print(out["e_form"])
         total_loss = sum([self.weight[target] * self.loss(out[target], batch[target]) for target in self.hparams["predictor"]["targets"].keys()])
-        self.log('train_loss', total_loss, prog_bar=True, batch_size=batch["batch_size"])
+        self.log('train_loss', total_loss, prog_bar=False, batch_size=batch["batch_size"])
         return total_loss
     
     def validation_step(self, batch, batch_idx):
         self(batch)
         out = batch["output"]
         for target in self.hparams["predictor"]["targets"].keys():
+            self.mses[target].update(out[target], batch[target])
+            self.log(f'val_mse_{target}', self.mses[target], prog_bar=False, batch_size=batch["batch_size"])
             self.maes[target].update(out[target], batch[target])
-            self.log(f'val_mae_{target}', self.maes[target], prog_bar=True, batch_size=batch["batch_size"])
+            self.log(f'val_mae_{target}', self.maes[target], prog_bar=False, batch_size=batch["batch_size"])
     
     def test_step(self, batch, batch_idx):
         self(batch)
         out = batch["output"]
         for target in self.hparams["predictor"]["targets"].keys():
             self.maes[target].update(out[target], batch[target])
-            self.log(f'test_mae_{target}', self.maes[target], prog_bar=True, batch_size=batch["batch_size"])
+            self.log(f'test_mae_{target}', self.maes[target], prog_bar=False, batch_size=batch["batch_size"])
             self.r2s[target].update(out[target], batch[target])
-            self.log(f'test_r2_{target}', self.r2s[target], prog_bar=True, batch_size=batch["batch_size"])
+            self.log(f'test_r2_{target}', self.r2s[target], prog_bar=False, batch_size=batch["batch_size"])

@@ -9,7 +9,6 @@ from math import pi as PI
 
 import sympy as sym
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def Jn(r, n):
     return np.sqrt(np.pi / (2 * r)) * sp.jv(n + 0.5, r)

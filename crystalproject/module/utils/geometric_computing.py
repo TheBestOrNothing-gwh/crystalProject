@@ -43,11 +43,10 @@ def crystal_to_dat(pos, edges, offsets, offsets_real, use_torsion=False):
     plane1 = torch.cross(p_jn, p_ji)
     plane2 = torch.cross(p_jk, p_ji)
     a = (plane1 * plane2).sum(dim=-1) # cos_angle * |plane1| * |plane2|
-    b = torch.cross(plane1, plane2).norm(dim=-1) # sin_angle * |pos_ji| * |pos_jk|
+    b = torch.cross(plane1, plane2).norm(dim=-1) # sin_angle * |plane1| * |plane2|
     dihedral_angle = torch.atan2(b, a) # -pi to pi
     dihedral_angle[dihedral_angle<=0] += 2 * pi # 0 to 2pi
-    dihedral_angle = scatter(dihedral_angle, torsion[1], reduce="min")
-    dihedral_angle = dihedral_angle.resize_(triplets.shape[1])
+    dihedral_angle = scatter(dihedral_angle, torsion[1], reduce="min", dim_size=triplets.shape[1])
 
     return dist, edges, angle, dihedral_angle, triplets
 

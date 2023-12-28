@@ -253,15 +253,14 @@ class SphereNet(torch.nn.Module):
     def forward(self, batch_data):
         v, pos, edges, offsets, offsets_real = batch_data["v"], batch_data["pos"], batch_data["edges"], batch_data["offsets"], batch_data["offsets_real"]
         dist, edge_index, angle, dihedral_angle, triplet_index = crystal_to_dat(pos, edges, offsets, offsets_real, use_torsion=True)
-
         emb = self.emb(dist, angle, dihedral_angle, triplet_index[0])
-
         #Initialize edge, node, graph features
         e = self.init_e(v, emb, edge_index)
         v = self.init_v(e, edge_index[1])
         
+        
         for update_e, update_v in zip(self.update_es, self.update_vs):
             e = update_e(e, emb, triplet_index)
             v = v + update_v(e, edge_index[1])
-            
+        
         return v
