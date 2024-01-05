@@ -51,6 +51,10 @@ class PreModule(lp.LightningModule):
             case "CosineAnnealingLR":
                 scheduler = lrs.CosineAnnealingLR(
                     optimizer, **conf_scheduler["kwargs"])
+            case "OneCycleLR":
+                scheduler = lrs.OneCycleLR(
+                    optimizer, **conf_scheduler["kwargs"]
+                )
         return [optimizer], [scheduler]
 
     def configure_loss(self):

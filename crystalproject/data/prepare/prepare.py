@@ -180,9 +180,9 @@ def prepare_data(root_dir, target_dir, split=[0.8, 0.1, 0.1], seed=123, stage="s
     datas = pd.merge(datas, new_datas, how="inner", on="name")
     datas.to_json(os.path.join(target_dir, "id_prop_all.json"), orient="records", force_ascii=True, indent=4)
     if len(split) != 0:
-        split(target_dir, split, seed)
+        split_data(target_dir, split, seed)
         
-def split(target_dir, split=[0.8, 0.1, 0.1], seed=123):
+def split_data(target_dir, split=[0.8, 0.1, 0.1], seed=123):
     assert (
             abs(split[0] + split[1] + split[2] - 1) <= 1e-5
         ), "train + val + test == 1"
