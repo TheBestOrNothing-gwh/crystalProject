@@ -11,8 +11,9 @@ from crystalproject.data.prepare.process.crystal_topo import create_crystal_topo
 
 @registry.register_dataset("CrystalTopoDataset")
 class CrystalTopoDataset(Dataset):
-    def __init__(self, root_dir, stage="predict", descriptor_index=[], on_the_fly=False, used_topos=["atom_radius_graph"], radius=5.0, max_nbr_num=12):
-        self.root_dir = root_dir
+    def __init__(self, input_dir, split_dir, stage="predict", descriptor_index=[], on_the_fly=False, used_topos=["atom_radius_graph"], radius=5.0, max_nbr_num=12):
+        self.input_dir = input_dir
+        self.split_dir = split_dir
         match stage:
             case "train" | "val" | "test":
                 self.id_prop = "id_prop_" + stage + ".json"
@@ -22,7 +23,7 @@ class CrystalTopoDataset(Dataset):
                 pass
         self.used_topos = used_topos
         self.descriptor_index = descriptor_index
-        with open(os.path.join(self.root_dir, self.id_prop)) as f:
+        with open(os.path.join(self.split_dir, self.id_prop)) as f:
             datas = json.load(f)
         self.datas = pd.json_normalize(datas)
         self.on_the_fly = on_the_fly
@@ -44,9 +45,9 @@ class CrystalTopoDataset(Dataset):
                 config["high_order"]["use_bond_types"] = value["use_bond_types"]
                 config["high_order"]["bond_types"] = value["bond_types"]
                 config["high_order"]["linker_types"] = value["linker_types"]
-            data = create_crystal_topo(os.path.join(self.root_dir, "all", name+".cif"), **config)
+            data = create_crystal_topo(os.path.join(self.input_dir, "all", name+".cif"), **config)
         else:
-            data = pickle.load(open(os.path.join(self.root_dir, "all", name+'.pkl'), "rb"))
+            data = pickle.load(open(os.path.join(self.input_dir, "all", name+'.pkl'), "rb"))
                 
         if "atom_radius_graph" in self.used_topos:
             data["atom_radius_graph"]["numbers"] = torch.tensor(data["atom_radius_graph"]["numbers"], dtype=torch.int32)

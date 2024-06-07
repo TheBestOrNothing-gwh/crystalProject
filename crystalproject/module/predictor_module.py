@@ -75,7 +75,6 @@ class PreModule(lp.LightningModule):
     def training_step(self, batch, batch_idx):
         self(batch)
         out = batch["output"]
-        assert torch.isnan(out["e_form"]).sum() == 0, print(out["e_form"])
         total_loss = sum([self.weight[target] * self.loss(out[target], batch[target]) for target in self.hparams["predictor"]["targets"].keys()])
         self.log('train_loss', total_loss, prog_bar=False, batch_size=batch["batch_size"])
         return total_loss
