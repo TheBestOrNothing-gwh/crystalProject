@@ -126,7 +126,7 @@ def draw_compare(fig, ax, x, y, x_label, y_label, addition, title="对比密度�
     # 绘制 hex bin
     hb = ax.hexbin(x, y, gridsize=50, bins='log', cmap="BuGn")
     # 添加colorbar
-    fig.colorbar(hb, ax=ax, label="log10(N)")
+    fig.colorbar(hb, ax=ax, label="log144, 141(N)")
     # 添加title
     ax.set_title(title, fontsize=18, fontfamily="sans-serif", fontstyle="italic")
     # 添加label
@@ -152,32 +152,48 @@ def draw_compare(fig, ax, x, y, x_label, y_label, addition, title="对比密度�
         }
     )
 
-def draw_topo(ax, topo):
+def draw_topo(ax, topo, graph):
     # 画出晶格
-    draw_cell(ax, topo["atom_graph"]["rvecs"], color="black")
-    # 画出原子图
-    draw_atoms(ax, topo["atom_graph"], atomic_scale=25)
-    for i, (pos1, pos2) in enumerate(topo["atom_graph"]["pos"][topo["atom_graph"]["edges"].T]):
-        offset = topo["atom_graph"]["offsets"][i]
-        offset_real = topo["atom_graph"]["offsets_real"][i]
+    draw_cell(ax, topo[graph]["rvecs"], color="black")
+    # # 画出原子图
+    draw_atoms(ax, topo[graph])
+    ax.scatter(
+        xs=topo[graph]["pos"][[144, 141], 0],
+        ys=topo[graph]["pos"][[144, 141], 1],
+        zs=topo[graph]["pos"][[144, 141], 2],
+        c="red",
+        s=50.,
+        alpha=0.2
+    )
+    for i, (pos1, pos2) in enumerate(topo[graph]["pos"][topo[graph]["edges"].T]):
+        offset = topo[graph]["offsets"][i]
+        offset_real = topo[graph]["offsets_real"][i]
         if any(offset != 0.):
             draw_line(ax, pos1, pos2+offset_real, color="black", linewidth=0.5, alpha=0.2)
         else:
             draw_line(ax, pos1, pos2, color="black", linewidth=0.5, alpha=0.1)
     # 画出拓扑图
-    ax.scatter(
-        xs=topo["underling_network"]["pos"][:, 0],
-        ys=topo["underling_network"]["pos"][:, 1],
-        zs=topo["underling_network"]["pos"][:, 2],
-        c="darkblue",
-        s=500.,
-        alpha=0.2
-    )
-    for i, (pos1, pos2) in enumerate(topo["underling_network"]["pos"][topo["underling_network"]["edges"].T]):
-        offset = topo["underling_network"]["offsets"][i]
-        offset_real = topo["underling_network"]["offsets_real"][i]
-        if any(offset != 0.):
-            draw_line(ax, pos1, pos2+offset_real, color="red", linestyle="--", linewidth=3, alpha=0.2)
-        else:
-            draw_line(ax, pos1, pos2, color="red", linestyle="-", linewidth=3, alpha=0.2)    
+    # ax.scatter(
+    #     xs=topo[graph]["pos"][:, 0],
+    #     ys=topo[graph]["pos"][:, 1],
+    #     zs=topo[graph]["pos"][:, 2],
+    #     c="darkblue",
+    #     s=500.,
+    #     alpha=0.2
+    # )
+    # # ax.scatter(
+    # #     xs=topo[graph]["pos"][[144, 141], 0],
+    # #     ys=topo[graph]["pos"][[144, 141], 1],
+    # #     zs=topo[graph]["pos"][[144, 141], 2],
+    # #     c="red",
+    # #     s=500.,
+    # #     alpha=0.2
+    # # )
+    # for i, (pos1, pos2) in enumerate(topo[graph]["pos"][topo[graph]["edges"].T]):
+    #     offset = topo[graph]["offsets"][i]
+    #     offset_real = topo[graph]["offsets_real"][i]
+    #     if any(offset != 0.):
+    #         draw_line(ax, pos1, pos2+offset_real, color="red", linestyle="--", linewidth=3, alpha=0.2)
+    #     else:
+    #         draw_line(ax, pos1, pos2, color="red", linestyle="-", linewidth=3, alpha=0.2)    
 

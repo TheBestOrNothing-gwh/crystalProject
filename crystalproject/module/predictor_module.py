@@ -77,6 +77,8 @@ class PreModule(lp.LightningModule):
         out = batch["output"]
         total_loss = sum([self.weight[target] * self.loss(out[target], batch[target]) for target in self.hparams["predictor"]["targets"].keys()])
         self.log('train_loss', total_loss, prog_bar=False, batch_size=batch["batch_size"])
+        lr = self.optimizers().param_groups[0]['lr']
+        self.log('train/lr', lr, on_step=False, on_epoch=True, prog_bar=True)
         return total_loss
     
     def validation_step(self, batch, batch_idx):

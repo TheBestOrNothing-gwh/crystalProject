@@ -18,6 +18,9 @@ class MLPhead(nn.Module):
         )
         self.targets = targets
         self.descriptors = descriptors
+    
+    def reset_parameters(self):
+        glorot_orthogonal(self.mlp.weight, scale=2.0)
 
     def forward(self, batch_data):
         input = torch.cat([batch_data[descriptor] for descriptor in self.descriptors], dim=1)

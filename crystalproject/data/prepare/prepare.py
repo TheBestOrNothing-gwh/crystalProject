@@ -109,6 +109,7 @@ def pre_control(root_dir, input_dir, datas, stage="crystalTopo", radius=5.0, max
     pool = Pool(processes=processes)
     manager = Manager()
     all_list = manager.list()
+    all_list = []
     pbar = tqdm(total=len(datas))
     pbar.set_description("process data")
     update = lambda *args: pbar.update()
@@ -117,7 +118,7 @@ def pre_control(root_dir, input_dir, datas, stage="crystalTopo", radius=5.0, max
             for _, row in datas.iterrows():
                 pool.apply_async(
                     func_simple,
-                    (root_dir, os.path.join(input_dir, "all"), row, all_list),
+                    (root_dir, input_dir, row, all_list),
                     callback=update,
                     error_callback=err_call_back
                 )
@@ -125,7 +126,7 @@ def pre_control(root_dir, input_dir, datas, stage="crystalTopo", radius=5.0, max
             for _, row in datas.iterrows():
                 pool.apply_async(
                     func_topo,
-                    (root_dir, os.path.join(input_dir, "all"), row, all_list, radius, max_num_nbr),
+                    (root_dir, input_dir, row, all_list, radius, max_num_nbr),
                     callback=update,
                     error_callback=err_call_back
                 )
@@ -133,7 +134,7 @@ def pre_control(root_dir, input_dir, datas, stage="crystalTopo", radius=5.0, max
             for _, row in datas.iterrows():
                 pool.apply_async(
                     func_radius,
-                    (root_dir, os.path.join(input_dir, "all"), row, all_list, radius, max_num_nbr),
+                    (root_dir, input_dir, row, all_list, radius, max_num_nbr),
                     callback=update,
                     error_callback=err_call_back
                 )
@@ -141,7 +142,7 @@ def pre_control(root_dir, input_dir, datas, stage="crystalTopo", radius=5.0, max
             for _, row in datas.iterrows():
                 pool.apply_async(
                     func_atom_graph,
-                    (root_dir, os.path.join(input_dir, "all"), row, all_list, radius, max_num_nbr),
+                    (root_dir, input_dir, row, all_list, radius, max_num_nbr),
                     callback=update,
                     error_callback=err_call_back
                 )
@@ -167,9 +168,7 @@ def prepare_data(root_dir, input_dir, split_dir, split=[0.8, 0.1, 0.1], seed=123
         datas = json.load(f)
     datas = pd.json_normalize(datas)
     # 进行数据处理，并返回正确处理的部分
-    if not os.path.exists(os.path.join(input_dir, "all")):
-        os.makedirs(os.path.join(input_dir, "all"))
-    new_datas = pre_control(root_dir, os.path.join(input_dir, "all"), datas.iloc[:, :],
+    new_datas = pre_control(root_dir, input_dir, datas.iloc[:, :],
                 stage=stage, radius=radius, max_num_nbr=max_num_nbr, processes=processes)
     # 是否做过预处理了，决定datas是否更新
     if os.path.exists(os.path.join(input_dir, "id_prop_all.json")):

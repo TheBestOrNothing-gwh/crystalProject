@@ -141,15 +141,16 @@ def get_linkages(system, use_bond_types=False, bond_types=[]):
 
 def get_bond_linkages(graph, use_bond_types=False, linkage_types=[]):
     # Search for C-C or C-N bond by partitioning the system in SBUs
+    if not use_bond_types:
+        return [], []
     all_bonds = set([])
     bond_linkages = set()
     for linkages in [cc, cn]:
         indices = set([])
         all_bonds_linkage = set([])
         for name in sorted(linkages.keys(), key=lambda e: linkages[e][0].pattern_graph.num_vertices, reverse = True):
-            if use_bond_types:
-                if name.lower() not in [linkage_type.lower() for linkage_type in linkage_types]:
-                    continue
+            if name.lower() not in [linkage_type.lower() for linkage_type in linkage_types]:
+                continue
             pattern, bonds = linkages[name]
             bonds = np.array(bonds)
             # Search for pattern

@@ -45,10 +45,9 @@ class CrystalTopoDataset(Dataset):
                 config["high_order"]["use_bond_types"] = value["use_bond_types"]
                 config["high_order"]["bond_types"] = value["bond_types"]
                 config["high_order"]["linker_types"] = value["linker_types"]
-            data = create_crystal_topo(os.path.join(self.input_dir, "all", name+".cif"), **config)
+            data = create_crystal_topo(os.path.join(self.input_dir, name+".cif"), **config)
         else:
-            data = pickle.load(open(os.path.join(self.input_dir, "all", name+'.pkl'), "rb"))
-                
+            data = pickle.load(open(os.path.join(self.input_dir, name+'.pkl'), "rb"))       
         if "atom_radius_graph" in self.used_topos:
             data["atom_radius_graph"]["numbers"] = torch.tensor(data["atom_radius_graph"]["numbers"], dtype=torch.int32)
             data["atom_radius_graph"]["edges"] = torch.tensor(data["atom_radius_graph"]["edges"], dtype=torch.int64)
@@ -145,7 +144,6 @@ class CrystalTopoDataset(Dataset):
                 batch_data["atom_radius_graph"]["offsets"].append(data["atom_radius_graph"]["offsets"])
                 batch_data["atom_radius_graph"]["rvecs"].append(data["atom_radius_graph"]["rvecs"])
                 batch_data["atom_radius_graph"]["batch"].append(torch.full((data["atom_radius_graph"]["pos"].shape[0], ), i))
-                base_atom_radius_idx += data["atom_radius_graph"]["pos"].shape[0]
             if "atom_bond_graph" in self.used_topos:
                 batch_data["atom_bond_graph"]["numbers"].append(data["atom_bond_graph"]["numbers"])
                 batch_data["atom_bond_graph"]["edges"].append(data["atom_bond_graph"]["edges"] + base_atom_bond_idx)
@@ -154,7 +152,6 @@ class CrystalTopoDataset(Dataset):
                 batch_data["atom_bond_graph"]["offsets"].append(data["atom_bond_graph"]["offsets"])
                 batch_data["atom_bond_graph"]["rvecs"].append(data["atom_bond_graph"]["rvecs"])
                 batch_data["atom_bond_graph"]["batch"].append(torch.full((data["atom_bond_graph"]["pos"].shape[0], ), i))
-                base_atom_bond_idx += data["atom_bond_graph"]["pos"].shape[0]
             if "high_order" in self.used_topos:
                 batch_data["cluster_graph"]["inter"].append(data["cluster_graph"]["inter"] + torch.tensor([[base_atom_bond_idx], [base_cluster_idx]]))
                 batch_data["cluster_graph"]["edges"].append(data["cluster_graph"]["edges"] + base_cluster_idx)
@@ -163,7 +160,6 @@ class CrystalTopoDataset(Dataset):
                 batch_data["cluster_graph"]["offsets"].append(data["cluster_graph"]["offsets"])
                 batch_data["cluster_graph"]["rvecs"].append(data["cluster_graph"]["rvecs"])
                 batch_data["cluster_graph"]["batch"].append(torch.full((data["cluster_graph"]["pos"].shape[0], ), i))
-                base_cluster_idx += data["cluster_graph"]["pos"].shape[0]
             
                 batch_data["underling_network"]["inter"].append(data["underling_network"]["inter"] + torch.tensor([[base_cluster_idx], [base_network_idx]]))
                 batch_data["underling_network"]["edges"].append(data["underling_network"]["edges"] + base_network_idx)
@@ -172,6 +168,10 @@ class CrystalTopoDataset(Dataset):
                 batch_data["underling_network"]["offsets"].append(data["underling_network"]["offsets"])
                 batch_data["underling_network"]["rvecs"].append(data["underling_network"]["rvecs"])
                 batch_data["underling_network"]["batch"].append(torch.full((data["underling_network"]["pos"].shape[0], ), i))
+                
+                base_atom_radius_idx += data["atom_radius_graph"]["pos"].shape[0]
+                base_atom_bond_idx += data["atom_bond_graph"]["pos"].shape[0]
+                base_cluster_idx += data["cluster_graph"]["pos"].shape[0]
                 base_network_idx += data["underling_network"]["pos"].shape[0]
 
             for descriptor in self.descriptor_index:
@@ -207,6 +207,5 @@ class CrystalTopoDataset(Dataset):
             batch_data["underling_network"]["batch"] = torch.cat(batch_data["underling_network"]["batch"], dim=0)
 
         for descriptor in self.descriptor_index:
-            batch_data[descriptor] = torch.cat(batch_data[descriptor], dim=0)
-            
+            batch_data[descriptor] = torch.cat(batch_data[descriptor], dim=0)   
         return batch_data

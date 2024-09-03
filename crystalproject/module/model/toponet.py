@@ -17,9 +17,9 @@ class TopoNet(nn.Module):
         self,
         atom_embedding={},
         atom_hidden_channels=128,
-        atom_bond_graph={},
+        atom_radius_graph={},
         atom_cluster_reduce="sum",
-        cluster_hidden_channels=256,
+        cluster_hidden_channels=128,
         cluster_graph={},
         cluster_network_reduce="sum",
         underling_network={},
@@ -33,8 +33,8 @@ class TopoNet(nn.Module):
         self.cluster_network_reduce = cluster_network_reduce
         self.reduce = reduce
         self.atom_emb = AtomEmbedding(hidden_channels=atom_hidden_channels, **atom_embedding)
-        model_cls = registry.get_model_class(atom_bond_graph["name"])
-        self.atom_bond_graph = model_cls(hidden_channels=atom_hidden_channels, **atom_bond_graph["kwargs"])
+        model_cls = registry.get_model_class(atom_radius_graph["name"])
+        self.atom_radius_graph = model_cls(hidden_channels=atom_hidden_channels, **atom_radius_graph["kwargs"])
         model_cls = registry.get_model_class(cluster_graph["name"])
         self.cluster_graph = model_cls(hidden_channels=cluster_hidden_channels, **cluster_graph["kwargs"])
         model_cls = registry.get_model_class(underling_network["name"])
@@ -45,16 +45,16 @@ class TopoNet(nn.Module):
         先做原子的初始嵌入，然后再输入到原子图中，然后得到了池化得到原子簇的表示，再输入到粗粒度图中，最后再传入到底层网络中
         """
         # 原子嵌入
-        atom_fea = self.atom_emb(batch_data["atom_bond_graph"]["numbers"])
-        batch_data["atom_bond_graph"]["v"] = atom_fea
-        atom_fea = self.atom_bond_graph(batch_data["atom_bond_graph"])
+        atom_fea = self.atom_emb(batch_data["atom_radius_graph"]["numbers"])
+        batch_data["atom_radius_graph"]["v"] = atom_fea
+        atom_fea = self.atom_radius_graph(batch_data["atom_radius_graph"])
         # 读出原子图
-        batch_data["atom_bond_graph_readout"] = scatter(atom_fea, batch_data["atom_bond_graph"]["batch"], dim=0, reduce=self.reduce)
+        batch_data["atom_radius_graph_readout"] = scatter(atom_fea, batch_data["atom_radius_graph"]["batch"], dim=0, reduce=self.reduce)
         # 读出得到原子簇的表示
         inter = batch_data["cluster_graph"]["inter"]
         cluster_fea = scatter(atom_fea[inter[0]], inter[1], dim=0, reduce=self.atom_cluster_reduce)
         batch_data["cluster_graph"]["v"] = cluster_fea
-        cluster_fea = self.cluster_graph(batch_data["cluster_graph"])
+        # cluster_fea = self.cluster_graph(batch_data["cluster_graph"])
         # 读出粗粒度图
         batch_data["cluster_graph_readout"] = scatter(cluster_fea, batch_data["cluster_graph"]["batch"], dim=0, reduce=self.reduce)
         # 读出底层网络节点的表示

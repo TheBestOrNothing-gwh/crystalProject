@@ -32,13 +32,13 @@ class MapDataModule(lp.LightningDataModule):
         return DataLoader(self.train_dataset, shuffle=True, collate_fn=self.train_dataset.collate, **self.hparams["dataloader"])
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, shuffle=False, collate_fn=self.train_dataset.collate, **self.hparams["dataloader"])
+        return DataLoader(self.val_dataset, shuffle=False, collate_fn=self.val_dataset.collate, **self.hparams["dataloader"])
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, shuffle=False, collate_fn=self.train_dataset.collate, **self.hparams["dataloader"])
+        return DataLoader(self.test_dataset, shuffle=False, collate_fn=self.test_dataset.collate, **self.hparams["dataloader"])
 
     def predict_dataloader(self):
-        return DataLoader(self.predict_dataset, shuffle=False, collate_fn=self.train_dataset.collate, **self.hparams["dataloader"])
+        return DataLoader(self.predict_dataset, shuffle=False, collate_fn=self.predict_dataset.collate, **self.hparams["dataloader"])
 
 
 if __name__ == "__main__":

@@ -36,3 +36,6 @@ class schnetEmbedding(nn.Module):
     def forward(self, dist):
         dist = dist.view(-1, 1) - self.offset.view(1, -1)
         return torch.exp(self.coeff * torch.pow(dist, 2))
+
+# class discreteEmbedding(nn.Module):
+    # def __init__(self)

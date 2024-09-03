@@ -165,6 +165,12 @@ def create_crystal_topo(cif_path, **kwargs):
         offsets = []
         for i in range(edges.shape[1]):
             i0, i1 = edges[0, i], edges[1, i]
+            #在此处检测是否存在化合价有问题的情况
+            a = set([inter[0][a] for a, b in enumerate(inter[1]) if b == i0])
+            b = set([inter[0][a] for a, b in enumerate(inter[1]) if b == i1])
+            if a <= b or a >= b:
+                # 化合价存在问题，多形成了化学键
+                raise RuntimeError(f"化合价存在问题，多形成了化学键: {os.path.basename(cif_path).split('.')[0]}")
             delta = pos[i0] - pos[i1]
             # 转换为分数距离
             frac = np.dot(system.cell.gvecs, delta)
@@ -180,6 +186,7 @@ def create_crystal_topo(cif_path, **kwargs):
             "offsets": offsets,
             "rvecs": rvecs,
         }
+
         # endregion
 
         # region底层网络图，再粗粒度图上再做一次操作，将所有度为2的superVerte转换为一条边，从而作为底层网络中的边处理。
@@ -202,6 +209,7 @@ def create_crystal_topo(cif_path, **kwargs):
                     for j in range(len(vertex2target)):
                         target = edges[1][vertex2target[j]]
                         if (source == target) and (offsets[source2vertex[i]] == -offsets[vertex2target[j]]).all():
+
                             # 检查是不是同一条边的两种表示，可以通过检查source和target，如果相同，还可以检查offset
                             continue
                         else:
