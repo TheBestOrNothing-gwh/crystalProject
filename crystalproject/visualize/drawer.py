@@ -8,31 +8,11 @@ from ase.data import covalent_radii
 from molmod.units import angstrom
 
 from crystalproject.assets.colors import cpk_colors
-from crystalproject.visualize.utils import plot_cube\
 
 
-def draw_colorbar(fig, ax, cmap, minatt, maxatt, **cbar_kwargs):
-    norm = Normalize(0.0, 1.0)
-    smap = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    cbar = fig.colorbar(
-        smap, ax=ax, fraction=cbar_kwargs["fraction"], shrink=cbar_kwargs["shrink"]
-    )
-    cbar.ax.tick_params(labelsize=cbar_kwargs["fontsize"])
-    ticks_loc = np.linspace(0, 1, cbar_kwargs["num_ticks"])
-    ticks_label = np.round(
-        np.linspace(minatt, maxatt, cbar_kwargs["num_ticks"]),
-        decimals=cbar_kwargs["decimals"],
-    )
-    cbar.ax.yaxis.set_major_locator(mticker.FixedLocator(ticks_loc))
-    cbar.ax.set_yticklabels(ticks_label)
-
-    cbar.ax.set_ylabel(
-        "Attention score",
-        rotation=270,
-        labelpad=cbar_kwargs["labelpad"],
-        fontdict={"size": cbar_kwargs["labelsize"]},
-    )
-
+"""
+提供各种基础的绘图函数，后续的visualizer模块用于整体的逻辑整合和绘制。
+"""
 
 def draw_line(ax, pos1, pos2, **kwargs):
     """
@@ -44,7 +24,6 @@ def draw_line(ax, pos1, pos2, **kwargs):
     :return:
     """
     ax.plot3D(*zip(pos1, pos2), **kwargs)
-
 
 def draw_cell(ax, lattice, s_point=None, **kwargs):
     """
@@ -66,7 +45,6 @@ def draw_cell(ax, lattice, s_point=None, **kwargs):
         draw_line(ax, s_point + v1, s_point + v1 + v2, **kwargs)
         draw_line(ax, s_point + v2, s_point + v1 + v2, **kwargs)
         draw_line(ax, s_point + v1 + v2, opp_vec, **kwargs)
-
 
 def draw_atoms(ax, atoms):
     """
@@ -90,19 +68,56 @@ def draw_atoms(ax, atoms):
         linewidths=0.8,
         alpha=1.0,
     )
+
+def draw_bonds(ax, graph, color, linewidth):
+    """
+    一般来说，原子图的边使用黑色，而拓扑图使用红色。
+    """
+    for i, (pos1, pos2) in enumerate(graph["pos"][graph["edges"].T]):
+        offset = graph["offsets"][i]
+        offset_real = graph["offsets_real"][i]
+        if any(offset != 0.):
+            draw_line(ax, pos1, pos2+offset_real, color=color, linestyle="--", linewidth=linewidth, alpha=0.2)
+        else:
+            draw_line(ax, pos1, pos2, color=color, linestyle="-", linewidth=linewidth, alpha=0.2)
     
-
-def draw_heatmap_grid(ax, positions, colors, lattice, num_patches, alpha=0.5, **kwargs):
-    cubes = plot_cube(
-        positions,
-        colors,
-        lattice=lattice,
-        num_patches=num_patches,
-        edgecolor=None,
-        alpha=alpha,
+def draw_topo(ax, graph):
+    # 画出拓扑图
+    ax.scatter(
+        xs=graph["pos"][:, 0],
+        ys=graph["pos"][:, 1],
+        zs=graph["pos"][:, 2],
+        c="darkblue",
+        s=500.,
+        alpha=0.2
     )
-    ax.add_collection3d(cubes, **kwargs)
 
+
+# 下面的绘图函数主要用于注意力系数的展示    
+def draw_colorbar(fig, ax, cmap, minatt, maxatt, **cbar_kwargs):
+    """
+    绘制热度图，主要用于存在注意力机制的情况下，进行注意力的展示
+    """
+    norm = Normalize(0.0, 1.0)
+    smap = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(
+        smap, ax=ax, fraction=cbar_kwargs["fraction"], shrink=cbar_kwargs["shrink"]
+    )
+    cbar.ax.tick_params(labelsize=cbar_kwargs["fontsize"])
+    ticks_loc = np.linspace(0, 1, cbar_kwargs["num_ticks"])
+    ticks_label = np.round(
+        np.linspace(minatt, maxatt, cbar_kwargs["num_ticks"]),
+        decimals=cbar_kwargs["decimals"],
+    )
+    cbar.ax.yaxis.set_major_locator(mticker.FixedLocator(ticks_loc))
+    cbar.ax.set_yticklabels(ticks_label)
+
+    cbar.ax.set_ylabel(
+        "Attention score",
+        rotation=270,
+        labelpad=cbar_kwargs["labelpad"],
+        fontdict={"size": cbar_kwargs["labelsize"]},
+    )
 
 def draw_heatmap_graph(ax, atoms, uni_idx, colors, atomic_scale, alpha):
     coords = atoms.get_positions()
@@ -122,6 +137,7 @@ def draw_heatmap_graph(ax, atoms, uni_idx, colors, atomic_scale, alpha):
         )
 
 
+# 这个函数用于模型预测效果的展示
 def draw_compare(fig, ax, x, y, x_label, y_label, addition, title="对比密度图"):
     # 绘制 hex bin
     hb = ax.hexbin(x, y, gridsize=50, bins='log', cmap="BuGn")
@@ -152,48 +168,5 @@ def draw_compare(fig, ax, x, y, x_label, y_label, addition, title="对比密度�
         }
     )
 
-def draw_topo(ax, topo, graph):
-    # 画出晶格
-    draw_cell(ax, topo[graph]["rvecs"], color="black")
-    # # 画出原子图
-    draw_atoms(ax, topo[graph])
-    ax.scatter(
-        xs=topo[graph]["pos"][[144, 141], 0],
-        ys=topo[graph]["pos"][[144, 141], 1],
-        zs=topo[graph]["pos"][[144, 141], 2],
-        c="red",
-        s=50.,
-        alpha=0.2
-    )
-    for i, (pos1, pos2) in enumerate(topo[graph]["pos"][topo[graph]["edges"].T]):
-        offset = topo[graph]["offsets"][i]
-        offset_real = topo[graph]["offsets_real"][i]
-        if any(offset != 0.):
-            draw_line(ax, pos1, pos2+offset_real, color="black", linewidth=0.5, alpha=0.2)
-        else:
-            draw_line(ax, pos1, pos2, color="black", linewidth=0.5, alpha=0.1)
-    # 画出拓扑图
-    # ax.scatter(
-    #     xs=topo[graph]["pos"][:, 0],
-    #     ys=topo[graph]["pos"][:, 1],
-    #     zs=topo[graph]["pos"][:, 2],
-    #     c="darkblue",
-    #     s=500.,
-    #     alpha=0.2
-    # )
-    # # ax.scatter(
-    # #     xs=topo[graph]["pos"][[144, 141], 0],
-    # #     ys=topo[graph]["pos"][[144, 141], 1],
-    # #     zs=topo[graph]["pos"][[144, 141], 2],
-    # #     c="red",
-    # #     s=500.,
-    # #     alpha=0.2
-    # # )
-    # for i, (pos1, pos2) in enumerate(topo[graph]["pos"][topo[graph]["edges"].T]):
-    #     offset = topo[graph]["offsets"][i]
-    #     offset_real = topo[graph]["offsets_real"][i]
-    #     if any(offset != 0.):
-    #         draw_line(ax, pos1, pos2+offset_real, color="red", linestyle="--", linewidth=3, alpha=0.2)
-    #     else:
-    #         draw_line(ax, pos1, pos2, color="red", linestyle="-", linewidth=3, alpha=0.2)    
+  
 

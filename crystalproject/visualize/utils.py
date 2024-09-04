@@ -1,162 +1,47 @@
 # MOFTransformer version 2.0.0
 import copy
-import math
-import ase.io
-from ase.build import make_supercell
-from itertools import product
 from functools import lru_cache
 from pathlib import Path
 from collections.abc import Iterable
 import numpy as np
-
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from pymatgen.io.cif import CifParser
-from pymatgen.io.ase import AseAtomsAdaptor
 import torch
+import lightning.pytorch as lp
 
+from crystalproject.module.predictor_module import PreModule
+from crystalproject.data.map_data_module import MapDataModule
 
-@lru_cache
-def get_batch_from_index(data_iter, batch_id):
-    iter_ = iter(data_iter)
-    for _ in range(batch_id):
-        next(iter_)
-    batch = next(iter_)
-    return batch
 
 
 @lru_cache
-def get_batch_from_cif_id(data_iter, cif_id):
-    cif_id = Path(cif_id).stem
+def get_model_and_datamodule(model_path, config_path):
+    module_config = module_config()
+    data_cinfig = data_config()
+    
+    lp.seed_everything(123)
+    model = PreModule(**module_config)
+    model.eval()
+    model.to("cpu")
+
+    dm = MapDataModule(**data_config)
+    dm.setup("test")
+    data_iter = dm.test_dataloader()
+
+    return model, data_iter
+
+
+@lru_cache
+def get_batch_from_cif_name(data_iter, cif_name):
+    cif_name = Path(cif_name).stem
     iter_ = iter(data_iter)
     while True:
         try:
             batch = next(iter_)
         except StopIteration:
-            raise ValueError(f"There are no {cif_id} in dataset")
+            raise ValueError(f"There are no {cif_name} in dataset")
         else:
-            batch_id = batch["cif_id"][0]
-            if batch_id == cif_id:
+            batch_id = batch["name"][0]
+            if batch_id == cif_name:
                 return batch
-
-
-@lru_cache
-def get_primitive_structure(path_cif, tolerance=2.0):
-    (st,) = CifParser(path_cif, occupancy_tolerance=tolerance).get_structures(
-        primitive=True
-    )
-    return st
-
-
-@lru_cache
-def get_structure(
-    path_cif, make_supercell=False, dtype="ase", *, max_length=60, min_length=30
-):
-    """
-    get primitive structure from path_cif
-    :param path_cif: <str> path for cif file
-    :param make_supercell: <bool> if True,
-    :param dtype: <str> -> ['ase', 'pymatgen'] return type for structure.
-    :param max_length: <int/float> max p_lattice length of structure file (Å)
-    :param min_length: <int/float> min p_lattice length of structure file (Å)
-    :return: <pymatgen.Structure> structure file from path cif
-    """
-    try:
-        CifParser(path_cif).get_structures()
-    except ValueError as e:
-        raise ValueError(f"{path_cif} failed : (read pymatgen) {e}")
-
-    atoms = ase.io.read(path_cif)
-
-    if make_supercell:
-        atoms = get_supercell_structure(atoms, max_length, min_length)
-    else:
-        atoms = get_supercell_structure(atoms, max_length, 8)
-
-    if dtype == "pymatgen":
-        return AseAtomsAdaptor().get_structure(atoms)
-    elif dtype == "ase":
-        return atoms
-    else:
-        raise TypeError(f"type must be ase or pymatgen, not {dtype}")
-
-
-def get_supercell_structure(atoms, max_length=60, min_length=30):
-    """
-    get supercell atoms from <ase.Atoms>
-    :param atoms: <ase.Atoms> object
-    :param max_length: <int/float> max p_lattice length of structure file (Å)
-    :param min_length: <int/float> min p_lattice length of structure file (Å)
-    :return: <ase.Atoms or pymatgen.Structure> structure type.
-    """
-    scale_abc = []
-    for l in atoms.cell.cellpar()[:3]:
-        if l > max_length:
-            raise ValueError(
-                f"primitive p_lattice is larger than max_length {max_length}"
-            )
-        elif l < min_length:
-            scale_abc.append(math.ceil(min_length / l))
-        else:
-            scale_abc.append(1)
-
-    m = np.zeros([3, 3])
-    np.fill_diagonal(m, scale_abc)
-    atoms = make_supercell(atoms, m)
-    return atoms
-
-
-def cuboid_data(position, color=None, num_patches=(6, 6, 6), lattice=None):
-    """
-    Get cuboid plain data from position and size data
-    :param position: <list/tuple> patch positions => [x, y, z]
-    :param color: <list/tuple> colors => [r, g, b, w]
-    :param num_patches: number of patches in each axis (default : (6, 6, 6))
-    :param lattice: <np.ndarray> p_lattice vector for unit p_lattice
-    :return: <tuple> (list of plain vector, list of color vector)
-    """
-    if isinstance(num_patches, (tuple, list)):
-        num_patches = np.array(num_patches)
-    elif not isinstance(num_patches, np.ndarray):
-        raise TypeError(f"num_patches must be tuple or list, not {type(num_patches)}")
-
-    bound = np.array([[0, 1] for _ in range(3)]) + np.array(position)[:, np.newaxis]
-    vertex = np.array(list(product(*bound)))
-    plane_ls = []
-    for i, (dn, up) in enumerate(bound):
-        plane1 = np.matmul(vertex[vertex[:, i] == dn], lattice / num_patches)
-        plane2 = np.matmul(vertex[vertex[:, i] == up], lattice / num_patches)
-
-        plane_ls.append(plane1)
-        plane_ls.append(plane2)
-
-    plane_ls = np.array(plane_ls).astype("float")
-    plane_ls[:, [0, 1], :] = plane_ls[:, [1, 0], :]
-
-    color_ls = np.repeat(color[np.newaxis, :], 6, axis=0)
-
-    return plane_ls, color_ls
-
-
-def plot_cube(positions, colors, lattice, num_patches=(6, 6, 6), **kwargs):
-    """
-    help function for draw 3d cube plot
-    :param positions: <list> list of patch position
-    :param colors: <list -> list> list of color codes [r, g, b, w]
-    :param lattice: <np.ndarray> p_lattice vector for unit p_lattice
-    :param num_patches: number of patches in each axis (default : (6, 6, 6))
-    :param kwargs: kwargs for <matplotlib.Poly3DCollection>
-    :return: <matplotlib.Poly3DCollection> cuboid matplotlib object
-    """
-
-    data = [
-        cuboid_data(pos, color, num_patches=num_patches, lattice=lattice)
-        for pos, color in zip(positions, colors)
-    ]
-    plain_ls, color_ls = zip(*data)
-
-    return Poly3DCollection(
-        np.concatenate(plain_ls), facecolors=np.concatenate(color_ls), **kwargs
-    )
 
 
 def get_heatmap(out, batch_idx, graph_len=300, skip_cls=True):

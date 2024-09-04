@@ -109,7 +109,6 @@ def pre_control(root_dir, input_dir, datas, stage="crystalTopo", radius=5.0, max
     pool = Pool(processes=processes)
     manager = Manager()
     all_list = manager.list()
-    all_list = []
     pbar = tqdm(total=len(datas))
     pbar.set_description("process data")
     update = lambda *args: pbar.update()
@@ -170,11 +169,6 @@ def prepare_data(root_dir, input_dir, split_dir, split=[0.8, 0.1, 0.1], seed=123
     # 进行数据处理，并返回正确处理的部分
     new_datas = pre_control(root_dir, input_dir, datas.iloc[:, :],
                 stage=stage, radius=radius, max_num_nbr=max_num_nbr, processes=processes)
-    # 是否做过预处理了，决定datas是否更新
-    if os.path.exists(os.path.join(input_dir, "id_prop_all.json")):
-        with open(os.path.join(input_dir, "id_prop_all.json")) as f:
-            datas = json.load(f)
-        datas = pd.json_normalize(datas)
     # 通过内连接保留这次正确处理以及之前预处理正确的共同部分
     datas = pd.merge(datas, new_datas, how="inner", on="name")
     datas.to_json(os.path.join(input_dir, "id_prop_all.json"), orient="records", force_ascii=True, indent=4)

@@ -79,7 +79,7 @@ class CrystalTopoDataset(Dataset):
 
         for descriptor in self.descriptor_index:
             data[descriptor] = torch.tensor(value[descriptor], dtype=torch.float32).unsqueeze(0) if value[descriptor].size > 1 else torch.tensor([value[descriptor]], dtype=torch.float32).unsqueeze(0)
-
+        data["name"] = name
         return data
 
     def collate(self, dataset_list):
@@ -130,6 +130,7 @@ class CrystalTopoDataset(Dataset):
         batch_data.update(
             {descriptor: [] for descriptor in self.descriptor_index}
         )
+        batch_data["name"] = []
         base_atom_radius_idx = 0
         base_atom_bond_idx = 0
         base_cluster_idx = 0
@@ -176,6 +177,7 @@ class CrystalTopoDataset(Dataset):
 
             for descriptor in self.descriptor_index:
                 batch_data[descriptor].append(data[descriptor])
+            batch_data["name"].append(data["name"])
         
         if "atom_radius_graph" in self.used_topos:
             batch_data["atom_radius_graph"]["numbers"] = torch.cat(batch_data["atom_radius_graph"]["numbers"], dim=0)
@@ -207,5 +209,5 @@ class CrystalTopoDataset(Dataset):
             batch_data["underling_network"]["batch"] = torch.cat(batch_data["underling_network"]["batch"], dim=0)
 
         for descriptor in self.descriptor_index:
-            batch_data[descriptor] = torch.cat(batch_data[descriptor], dim=0)   
+            batch_data[descriptor] = torch.cat(batch_data[descriptor], dim=0)
         return batch_data
