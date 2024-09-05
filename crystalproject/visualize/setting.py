@@ -4,7 +4,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
 
-DEFAULT_FIGSIZE = (24, 24)
+DEFAULT_FIGSIZE = (8, 8)
 DEFAULT_VIEW_INIT = (0, 0)
 
 

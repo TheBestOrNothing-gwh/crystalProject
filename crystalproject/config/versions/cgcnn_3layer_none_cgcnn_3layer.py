@@ -10,7 +10,7 @@ module_config = {
                 "config_path": "/home/gwh/project/crystalProject/models/crystalProject/crystalproject/assets/atom_init.json"
             },
             "atom_hidden_channels": 128,
-            "atom_radius_graph":{
+            "atom_graph":{
                 "name": "cgcnn",
                 "kwargs":{
                     "num_layers": 3,
@@ -47,15 +47,15 @@ module_config = {
         }
     },
     "predictor":{
-        "targets": {"absolute methane uptake high P [v STP/v]": 1.0},
+        "targets": {"absolute methane uptake low P [v STP/v]": 1.0},
         "heads":[
             {
                 "name": "mlphead",
                 "kwargs":{
                     "in_channels": 256,
                     "out_channels": 1,
-                    "targets": ["absolute methane uptake high P [v STP/v]"],
-                    "descriptors": ["atom_radius_graph_readout", "underling_network_readout"]
+                    "targets": ["absolute methane uptake low P [v STP/v]"],
+                    "descriptors": ["atom_bond_graph_readout", "underling_network_readout"]
                 }
             },
         ]
@@ -89,7 +89,7 @@ data_config = {
         "kwargs":{
             "input_dir": "/home/gwh/project/crystalProject/DATA/cofs_Methane/process/input_dir",
             "split_dir": "/home/gwh/project/crystalProject/DATA/cofs_Methane/process/split_dir/random1",
-            "descriptor_index": ["absolute methane uptake high P [v STP/v]"],
+            "descriptor_index": ["absolute methane uptake low P [v STP/v]"],
             "used_topos": ["atom_radius_graph", "atom_bond_graph", "high_order"]
         }
     },

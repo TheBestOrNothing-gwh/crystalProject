@@ -62,9 +62,11 @@ def draw_atoms(ax, atoms):
         ys=coords[:, 1],
         zs=coords[:, 2],
         c=atomic_colors,
-        s=atomic_sizes,
+        s=atomic_sizes * 10,
         marker="o",
         alpha=1.0,
+        edgecolor="black",
+        linewidths=0.2
     )
 
 def draw_bonds(ax, graph, color, linewidth):
@@ -86,8 +88,8 @@ def draw_topo(ax, graph):
         ys=graph["pos"][:, 1],
         zs=graph["pos"][:, 2],
         c="darkblue",
-        s=500.,
-        alpha=0.2
+        s=2000.,
+        alpha=0.1
     )
 
 
