@@ -9,19 +9,23 @@ import lightning.pytorch as lp
 
 from crystalproject.module.predictor_module import PreModule
 from crystalproject.data.map_data_module import MapDataModule
-
+from crystalproject.config import get_config
 
 
 @lru_cache
-def get_model_and_datamodule(model_path, config_path):
-    module_config = module_config()
-    data_cinfig = data_config()
+def get_model_and_datamodule(path, model_path):
+    _, data_config = get_config(path)
     
     lp.seed_everything(123)
-    model = PreModule(**module_config)
+    model = PreModule.load_from_checkpoint(model_path)
     model.eval()
     model.to("cpu")
 
+    data_config["dataloader"] = {
+        "batch_size": 1,
+        "num_workers": 1,
+        "pin_memory": True,
+    }
     dm = MapDataModule(**data_config)
     dm.setup("test")
     data_iter = dm.test_dataloader()

@@ -64,8 +64,6 @@ def draw_atoms(ax, atoms):
         c=atomic_colors,
         s=atomic_sizes,
         marker="o",
-        edgecolor="black",
-        linewidths=0.8,
         alpha=1.0,
     )
 
