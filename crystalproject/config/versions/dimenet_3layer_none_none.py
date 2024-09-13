@@ -55,6 +55,36 @@ module_config = {
             },
         ]
     },
+    "normalizers":{
+        "absolute methane uptake high P [v STP/v]": {
+            "name": "gaussian",
+            "kwargs":{
+                "mean":151.0455,
+                "std":37.8794
+            }
+        }, 
+        "absolute methane uptake low P [v STP/v]": {
+            "name": "gaussian",
+            "kwargs":{
+                "mean":21.0435,
+                "std":14.6343
+            }
+        }, 
+        "CO2 Qst [kJ/mol]": {
+            "name": "gaussian",
+            "kwargs":{
+                "mean":-14.5249,
+                "std":4.4183
+            }
+        }, 
+        "CO2 kH [mol/kg/Pa] log": {
+            "name": "gaussian",
+            "kwargs":{
+                "mean":-10.9937,
+                "std":0.5078
+            }
+        }
+    },
     "optimizers":{
         "name": "Adam",
         "kwargs":{

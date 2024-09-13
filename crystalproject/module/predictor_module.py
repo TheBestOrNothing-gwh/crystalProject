@@ -7,6 +7,7 @@ from torchmetrics.regression import MeanAbsoluteError, R2Score, MeanSquaredError
 
 from crystalproject.utils.registry import registry
 from crystalproject.module.model import *
+from crystalproject.module.utils import *
 
 
 class PreModule(lp.LightningModule):
@@ -27,6 +28,14 @@ class PreModule(lp.LightningModule):
                 registry.get_head_class(conf_head["name"])(**conf_head["kwargs"])
                 for conf_head in conf_predictor["heads"]
             ]
+        )
+        conf_normalizers = self.hparams["normalilzers"]
+        self.normalizers = nn.ModuleDict(
+            {
+                key: registry.get_model_class(value["name"])(**value["kwargs"])
+                for key, value in conf_normalizers
+            }
+                
         )
     
     def configure_optimizers(self):
@@ -75,7 +84,7 @@ class PreModule(lp.LightningModule):
     def training_step(self, batch, batch_idx):
         self(batch)
         out = batch["output"]
-        total_loss = sum([self.weight[target] * self.loss(out[target], batch[target]) for target in self.hparams["predictor"]["targets"].keys()])
+        total_loss = sum([self.weight[target] * self.loss(out[target], self.normalizers[target].norm(batch[target])) for target in self.hparams["predictor"]["targets"].keys()])
         self.log('train_loss', total_loss, prog_bar=False, batch_size=batch["batch_size"])
         lr = self.optimizers().param_groups[0]['lr']
         self.log('train/lr', lr, on_step=False, on_epoch=True, prog_bar=True)
@@ -85,16 +94,16 @@ class PreModule(lp.LightningModule):
         self(batch)
         out = batch["output"]
         for target in self.hparams["predictor"]["targets"].keys():
-            self.mses[target].update(out[target], batch[target])
+            self.mses[target].update(self.normalizers[target].denorm(out[target]), batch[target])
             self.log(f'val_mse_{target}', self.mses[target], prog_bar=False, batch_size=batch["batch_size"])
-            self.maes[target].update(out[target], batch[target])
+            self.maes[target].update(self.normalizers[target].denorm(out[target]), batch[target])
             self.log(f'val_mae_{target}', self.maes[target], prog_bar=False, batch_size=batch["batch_size"])
     
     def test_step(self, batch, batch_idx):
         self(batch)
         out = batch["output"]
         for target in self.hparams["predictor"]["targets"].keys():
-            self.maes[target].update(out[target], batch[target])
+            self.maes[target].update(self.normalizers[target].denorm(out[target]), batch[target])
             self.log(f'test_mae_{target}', self.maes[target], prog_bar=False, batch_size=batch["batch_size"])
-            self.r2s[target].update(out[target], batch[target])
+            self.r2s[target].update(self.normalizers[target].denorm(out[target]), batch[target])
             self.log(f'test_r2_{target}', self.r2s[target], prog_bar=False, batch_size=batch["batch_size"])
