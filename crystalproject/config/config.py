@@ -1,11 +1,9 @@
-import importlib.util
-import sys 
+import importlib.util  
 
-def get_config(path):
-    spec = importlib.util.spec_from_file_location("config", path)
-    module = importlib.util.module_from_spec(spec)
+
+def get_config(config_path=""):
+    # 使用spec来加载模块  
+    spec = importlib.util.spec_from_file_location("module", config_path)  
+    module = importlib.util.module_from_spec(spec)  
     spec.loader.exec_module(module)
-
-    module_config = module.module_config
-    data_config = module.data_config
-    return module_config, data_config
+    return module.module_config, module.data_config, module.trainer_config

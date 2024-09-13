@@ -30,11 +30,13 @@ def divide_graphs(system, use_bond_types=False, bond_types=[], linker_types=[]):
     linker_graph = MolecularGraph(graph_edges, system.numbers)
     linkers = get_isolated_partitions(linker_graph)
     # 做完划分
-    partitions = []
+    partitions, connectors = [], []
     partitions.extend(linkages)
     partitions.extend(bond_linkages)
     partitions.extend(linkers)
-    return partitions
+    connectors.extend(linkages)
+    connectors.extend(bond_linkages)
+    return partitions, connectors
 
 def create_crystal_topo(cif_path, **kwargs):
     topo = {}
@@ -124,7 +126,7 @@ def create_crystal_topo(cif_path, **kwargs):
         bond_types = kwargs["high_order"]["bond_types"]
         linker_types = kwargs["high_order"]["linker_types"]
         # region 计算粗粒度图，不仅要得到粗粒度图的表示，还需要得到vertex到supervertex的关系矩阵，这部分是关键
-        partitions = divide_graphs(system, use_bond_types, bond_types, linker_types)
+        partitions, connectors = divide_graphs(system, use_bond_types, bond_types, linker_types)
         cc = CombinatorialComplex()
         cc.add_cells_from(range(system.natom), ranks=0)
         cc.add_cells_from(partitions, ranks=1)
@@ -170,7 +172,7 @@ def create_crystal_topo(cif_path, **kwargs):
             b = set([inter[0][a] for a, b in enumerate(inter[1]) if b == i1])
             if a <= b or a >= b:
                 # 化合价存在问题，多形成了化学键
-                raise RuntimeError(f"化合价存在问题，多形成了化学键: {os.path.basename(cif_path).split('.')[0]}")
+                raise RuntimeError(f"单体节点完全包含了反应位点，主要是由于化合价错误导致: {os.path.basename(cif_path).split('.')[0]}")
             delta = pos[i0] - pos[i1]
             # 转换为分数距离
             frac = np.dot(system.cell.gvecs, delta)
@@ -186,7 +188,47 @@ def create_crystal_topo(cif_path, **kwargs):
             "offsets": offsets,
             "rvecs": rvecs,
         }
+        # endregion
+        # region 单体图，去除粗粒度图中所有的反应位点，剩余的部分则都是单体，建立单体之间的图结构
+        pos, edges, offsets = pos, edges, offsets
+        for connector in connectors:
+            tmp_edges, tmp_offset = [], []
+            index = partitions.index(connector)
+            source2vertex = np.argwhere(edges[1]==index).flatten()
+            vertex2target = np.argwhere(edges[0]==index).flatten()
+            for i in range(len(source2vertex)):
+                source = edges[0][source2vertex[i]]
+                for j in range(len(vertex2target)):
+                    target = edges[1][vertex2target[j]]
+                    if (source == target) and (offsets[source2vertex[i]] == -offsets[vertex2target[j]]).all():
 
+                        # 检查是不是同一条边的两种表示，可以通过检查source和target，如果相同，还可以检查offset
+                        continue
+                    else:
+                        tmp_edges.append([source, target])
+                        tmp_offset.append(offsets[source2vertex[i]] + offsets[vertex2target[j]])
+            # 对edges和offset进行清理，
+            indices = np.concatenate((source2vertex, vertex2target), axis=0)
+            edges = np.delete(edges, indices, axis=1)
+            offsets = np.delete(offsets, indices, axis=0)
+            edges = np.concatenate((edges, np.array(tmp_edges).T), axis=1)
+            offsets = np.concatenate((offsets, np.array(tmp_offset)), axis=0)
+        # 对剩余的节点进行提取，因为此时edges和offsets已经是新的了，但是pos还是没有删除出度为2的点的情况，
+        # 只需要提取一下剩余节点的索引，用于最终的readout就可以了。
+        indices = np.array(sorted(list(set(edges[0]))))
+        pos = pos[indices]
+        map = {item:index for index, item in enumerate(indices)}
+        edges = np.vectorize(map.get)(edges)
+        inter = np.array([[i, j] for i, j in map.items()]).T
+        offsets_real = np.dot(offsets, rvecs)    
+        topo["linker_graph"] = {
+            "inter": inter,
+            "edges": edges,
+            "pos": pos,
+            "offsets_real": offsets_real,
+            "offsets": offsets,
+            "rvecs": rvecs,
+        }     
         # endregion
 
         # region底层网络图，再粗粒度图上再做一次操作，将所有度为2的superVerte转换为一条边，从而作为底层网络中的边处理。
@@ -238,5 +280,4 @@ def create_crystal_topo(cif_path, **kwargs):
             "rvecs": rvecs,
         }
         # endregion
-    
     return topo

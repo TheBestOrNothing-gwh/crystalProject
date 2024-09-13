@@ -180,6 +180,22 @@ class dist_emb(torch.nn.Module):
         dist = dist.unsqueeze(-1) / self.cutoff
         return self.envelope(dist) * (self.freq * dist).sin()
 
+class dist_emb2(torch.nn.Module):
+    def __init__(self, num_radial, cutoff=5.0):
+        super(dist_emb2, self).__init__()
+        self.cutoff = cutoff
+        
+        self.freq = torch.nn.Parameter(torch.Tensor(num_radial))
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        self.freq.data = torch.arange(1, self.freq.numel() + 1).float().mul_(PI)
+
+    def forward(self, dist):
+        dist = dist.unsqueeze(-1) / self.cutoff
+        return (self.freq * dist).sin()
+
 
 class angle_emb(torch.nn.Module):
     def __init__(self, num_spherical, num_radial, cutoff=5.0,

@@ -6,16 +6,20 @@ from torch_scatter import scatter
 
 from crystalproject.utils.registry import registry
 from crystalproject.module.utils.geometric_computing import crystal_to_dat
-from crystalproject.module.utils.features import dist_emb, angle_emb
+from crystalproject.module.utils.features import dist_emb, dist_emb2, angle_emb
 
 
 def swish(x):
     return x * torch.sigmoid(x)
 
 class emb(torch.nn.Module):
-    def __init__(self, num_spherical, num_radial, cutoff, envelope_exponent):
+    def __init__(self, num_spherical, num_radial, cutoff, envelope_exponent, used_dist="dist_emb"):
         super(emb, self).__init__()
-        self.dist_emb = dist_emb(num_radial, cutoff, envelope_exponent)
+        match used_dist:
+            case "dist_emb":
+                self.dist_emb = dist_emb(num_radial, cutoff, envelope_exponent)
+            case "dist_emb2":
+                self.dist_emb = dist_emb2(num_radial, cutoff)
         self.angle_emb = angle_emb(num_spherical, num_radial, cutoff, envelope_exponent)
         self.reset_parameters()
     
@@ -25,6 +29,15 @@ class emb(torch.nn.Module):
     def forward(self, dist, angle, idx_kj):
         dist_emb = self.dist_emb(dist)
         angle_emb = self.angle_emb(dist, angle, idx_kj)
+        if torch.any(torch.isnan(angle_emb)):
+            nan_mask = torch.isnan(angle_emb)  
+            nan_rows = nan_mask.any(dim=1)  
+            nan_row_indices = nan_rows.nonzero(as_tuple=False).squeeze()
+            print("nan原因")
+            print(nan_row_indices)
+            print(angle[nan_row_indices])
+            print(dist[idx_kj][nan_row_indices])
+            print(angle_emb[nan_row_indices])
         return dist_emb, angle_emb
 
 
@@ -208,14 +221,14 @@ class DimeNetPP(torch.nn.Module):
         hidden_channels=128, int_emb_size=64, basis_emb_size=8, out_emb_channels=256, 
         num_spherical=7, num_radial=6, envelope_exponent=5, 
         num_before_skip=1, num_after_skip=2, num_output_layers=3, 
-        act=swish):
+        act=swish, used_dist="dist_emb"):
         super(DimeNetPP, self).__init__()
 
         self.cutoff = cutoff
         
         self.init_e = init(num_radial, hidden_channels, act)
         self.init_v = update_v(hidden_channels, out_emb_channels, num_output_layers, act)
-        self.emb = emb(num_spherical, num_radial, self.cutoff, envelope_exponent)
+        self.emb = emb(num_spherical, num_radial, self.cutoff, envelope_exponent, used_dist)
         
         self.update_vs = torch.nn.ModuleList([
             update_v(hidden_channels, out_emb_channels, num_output_layers, act) for _ in range(num_layers)])
@@ -245,7 +258,6 @@ class DimeNetPP(torch.nn.Module):
     def forward(self, batch_data):
         v, pos, edges, offsets, offsets_real = batch_data["v"], batch_data["pos"], batch_data["edges"], batch_data["offsets"], batch_data["offsets_real"]
         dist, edge_index, angle, triplet_index = crystal_to_dat(pos, edges, offsets, offsets_real, use_torsion=False)
-
         emb = self.emb(dist, angle, triplet_index[0])
 
         #Initialize edge, node, graph features

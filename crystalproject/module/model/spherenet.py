@@ -6,16 +6,19 @@ from torch_scatter import scatter
 
 from crystalproject.utils.registry import registry
 from crystalproject.module.utils.geometric_computing import crystal_to_dat
-from crystalproject.module.utils.features import dist_emb, angle_emb, torsion_emb
-
+from crystalproject.module.utils.features import dist_emb, dist_emb2, angle_emb, torsion_emb
 
 def swish(x):
     return x * torch.sigmoid(x)
 
 class emb(torch.nn.Module):
-    def __init__(self, num_spherical, num_radial, cutoff, envelope_exponent):
+    def __init__(self, num_spherical, num_radial, cutoff, envelope_exponent, used_dist="dist_emb"):
         super(emb, self).__init__()
-        self.dist_emb = dist_emb(num_radial, cutoff, envelope_exponent)
+        match used_dist:
+            case "dist_emb":
+                self.dist_emb = dist_emb(num_radial, cutoff, envelope_exponent)
+            case "dist_emb2":
+                self.dist_emb = dist_emb2(num_radial, cutoff)
         self.angle_emb = angle_emb(num_spherical, num_radial, cutoff, envelope_exponent)
         self.torsion_emb = torsion_emb(num_spherical, num_radial, cutoff, envelope_exponent)
         self.reset_parameters()
@@ -222,15 +225,16 @@ class SphereNet(torch.nn.Module):
         basis_emb_size_dist=8, basis_emb_size_angle=8, basis_emb_size_torsion=8, out_emb_channels=256,
         num_spherical=7, num_radial=6, envelope_exponent=5,
         num_before_skip=1, num_after_skip=2, num_output_layers=3,
-        act=swish, use_node_features=True):
+        act=swish, use_node_features=True, used_dist="dist_emb"):
         super(SphereNet, self).__init__()
 
         self.cutoff = cutoff
         self.use_node_features = use_node_features
+
         
         self.init_e = init(num_radial, hidden_channels, act, use_node_features=self.use_node_features)
         self.init_v = update_v(hidden_channels, out_emb_channels, num_output_layers, act)
-        self.emb = emb(num_spherical, num_radial, self.cutoff, envelope_exponent)
+        self.emb = emb(num_spherical, num_radial, self.cutoff, envelope_exponent, used_dist)
 
         self.update_vs = torch.nn.ModuleList([
             update_v(hidden_channels, out_emb_channels, num_output_layers, act) for _ in range(num_layers)])

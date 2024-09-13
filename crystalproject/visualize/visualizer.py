@@ -5,6 +5,9 @@ from functools import wraps, partial
 from matplotlib import pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib import animation
+import pandas as pd
+import json
+import os
 
 from crystalproject.visualize.utils import (
     get_heatmap,
@@ -29,6 +32,7 @@ from crystalproject.visualize.drawer import (
     draw_colorbar,
     draw_heatmap_graph,
 )
+from crystalproject.data.prepare.process.crystal_topo import create_crystal_topo
 
 
 class Visualizer(object):
@@ -71,7 +75,7 @@ class Visualizer(object):
 
     @classmethod
     def from_cifname(
-        cls, cif_name, config_path, model_path, **kwargs
+        cls, cif_name, config_path, model_path="", **kwargs
     ):
         """
         Create PatchVisualizer from cif name. cif must be in test.json or test_{downstream}.json.
@@ -88,7 +92,46 @@ class Visualizer(object):
         model, data_iter = get_model_and_datamodule(config_path, model_path)
         batch = get_batch_from_cif_name(data_iter, cif_name)
         return cls.from_batch(batch, 0, model, **kwargs)
+    
+    @classmethod
+    def from_cifname_row(
+        cls, cif_name, root_dir, radius=8.0, max_num_nbr=12, **kwargs
+    ):
+        """
+        Create PatchVisualizer from cif name. cif must be in test.json or test_{downstream}.json.
 
+        :param config_path: 记录模型和dataset参数的文件路径
+        :param kwargs:
+            figsize : (float, float) figure size
+            view_init : (float, float) view init from matplotlib
+            show_axis : <bool> If True, axis are visible. (default : False)
+            show_colorbar : <bool> If True, colorbar are visible. (default : True)
+            cmap : (str or matplotlib.colors.ListedColormap) color map used in figure. (default : None)
+        :return: PatchVisualizer class for index
+        """
+        with open(os.path.join(root_dir, "id_prop.json")) as f:
+            datas = json.load(f)
+        datas = pd.json_normalize(datas)
+        row = datas.loc[datas["name"] == cif_name].iloc[0]
+        config = {
+            "used_topos":["atom_radius_graph", "atom_bond_graph", "high_order"],
+            "atom_radius_graph":{
+                "radius": radius,
+                "max_num_nbr": max_num_nbr
+            },
+            "high_order":{
+                "use_bond_types": row["use_bond_types"],
+                "bond_types": row["bond_types"],
+                "linker_types": row["linker_types"]
+            }
+        }
+        process_data = create_crystal_topo(
+            os.path.join(root_dir, row["name"]+".cif"),
+            **config
+        )
+        return cls(
+            process_data, **kwargs
+        )
     @property
     def figsize(self):
         return self.kwargs.get("figsize", DEFAULT_FIGSIZE)
@@ -212,21 +255,35 @@ class Visualizer(object):
         # 绘制晶格
         draw_cell(ax, self.batch_data["atom_bond_graph"]["rvecs"][0], color="black")
 
-        # 绘制原子
-        draw_atoms(
-            ax, 
-            self.batch_data["atom_bond_graph"]
-        )
+        # # 绘制原子
+        # draw_atoms(
+        #     ax, 
+        #     self.batch_data["atom_bond_graph"]
+        # )
         
-        # 绘制原子键
-        draw_bonds(
-            ax, 
-            self.batch_data["atom_bond_graph"],
-            "black",
-            0.8
-        )
+        # # 绘制原子键
+        # draw_bonds(
+        #     ax, 
+        #     self.batch_data["atom_bond_graph"],
+        #     "black",
+        #     0.8
+        # )
 
         # 绘制底层网络
+        # draw_topo(
+        #     ax,
+        #     self.batch_data["cluster_graph"],
+        #     c="green",
+        #     s=100.,
+        #     alpha=0.3
+        # )
+        # draw_topo(
+        #     ax,
+        #     self.batch_data["linker_graph"],
+        #     c="purple",
+        #     s=500.,
+        #     alpha=0.2
+        # )
         draw_topo(
             ax,
             self.batch_data["underling_network"]

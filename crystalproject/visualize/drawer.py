@@ -81,15 +81,15 @@ def draw_bonds(ax, graph, color, linewidth):
         else:
             draw_line(ax, pos1, pos2, color=color, linestyle="-", linewidth=linewidth, alpha=0.2)
     
-def draw_topo(ax, graph):
+def draw_topo(ax, graph, c="darkblue", s=3000., alpha=0.1):
     # 画出拓扑图
     ax.scatter(
         xs=graph["pos"][:, 0],
         ys=graph["pos"][:, 1],
         zs=graph["pos"][:, 2],
-        c="darkblue",
-        s=2000.,
-        alpha=0.1
+        c=c,
+        s=s,
+        alpha=alpha
     )
 
 
