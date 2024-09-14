@@ -5,8 +5,6 @@ from crystalproject.module.model import dimenetpp
 from crystalproject.module.model import spherenet
 from crystalproject.module.model import gcn
 from crystalproject.module.model import toponet
-from crystalproject.module.model import radiusgraphnet
-from crystalproject.module.model import test
 
 from crystalproject.module.model import heads
 

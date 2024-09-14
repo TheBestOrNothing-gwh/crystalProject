@@ -10,14 +10,14 @@ module_config = {
                 "config_path": "/home/gwh/project/crystalProject/models/crystalProject/crystalproject/assets/atom_init.json"
             },
             "atom_hidden_channels": 128,
-            "atom_radius_graph":{
-                "name": "schnet",
+            "atom_bond_graph":{
+                "name": "spherenet",
                 "kwargs":{
-                    "num_layers": 3,
-                    "cutoff": 5.0 * angstrom
+                    "cutoff": 5.0 * angstrom,
+                    "num_layers": 3
                 }
             },
-            "atom_bond_graph":{},
+            "atom_radius_graph":{},
             "cluster_hidden_channels": 128,
             "cluster_graph":{},
             "linker_graph":{},
@@ -26,16 +26,16 @@ module_config = {
     },
     "predictor":{
         "targets": {
-            "absolute methane uptake high P [v STP/v]": 0.01, 
-            "absolute methane uptake low P [v STP/v]": 1.,
-            "CO2 Qst [kJ/mol]": 1.,
-            "CO2 kH [mol/kg/Pa] log": 1.
+            "absolute methane uptake high P [v STP/v]": 0.25, 
+            "absolute methane uptake low P [v STP/v]": 0.25,
+            "CO2 Qst [kJ/mol]": 0.25,
+            "CO2 kH [mol/kg/Pa] log": 0.25
         },
         "heads":[
             {
                 "name": "mlphead",
                 "kwargs":{
-                    "in_channels": 128,
+                    "in_channels": 256,
                     "out_channels": 4,
                     "targets": [
                         "absolute methane uptake high P [v STP/v]", 
@@ -44,11 +44,41 @@ module_config = {
                         "CO2 kH [mol/kg/Pa] log"
                     ],
                     "descriptors": [
-                        "atom_radius_graph_readout"
+                        "atom_bond_graph_readout"
                     ]
                 }
             },
         ]
+    },
+    "normalizers":{
+        "absolute methane uptake high P [v STP/v]": {
+            "name": "gaussian",
+            "kwargs":{
+                "mean":151.0455,
+                "std":37.8794
+            }
+        }, 
+        "absolute methane uptake low P [v STP/v]": {
+            "name": "gaussian",
+            "kwargs":{
+                "mean":21.0435,
+                "std":14.6343
+            }
+        }, 
+        "CO2 Qst [kJ/mol]": {
+            "name": "gaussian",
+            "kwargs":{
+                "mean":-14.5249,
+                "std":4.4183
+            }
+        }, 
+        "CO2 kH [mol/kg/Pa] log": {
+            "name": "gaussian",
+            "kwargs":{
+                "mean":-10.9937,
+                "std":0.5078
+            }
+        }
     },
     "optimizers":{
         "name": "Adam",
@@ -90,8 +120,8 @@ data_config = {
         }
     },
     "dataloader":{
-        "batch_size": 64,
-        "num_workers": 16,
+        "batch_size": 2,
+        "num_workers": 4,
         "pin_memory": True,
     }
 }
@@ -99,5 +129,5 @@ trainer_config = {
     "max_epochs": 1000,
     "min_epochs": 100,
     "default_root_dir": "log/",
-    "accumulate_grad_batches":1
+    "accumulate_grad_batches":32
 }

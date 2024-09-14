@@ -29,11 +29,11 @@ class PreModule(lp.LightningModule):
                 for conf_head in conf_predictor["heads"]
             ]
         )
-        conf_normalizers = self.hparams["normalilzers"]
+        conf_normalizers = self.hparams["normalizers"]
         self.normalizers = nn.ModuleDict(
             {
                 key: registry.get_model_class(value["name"])(**value["kwargs"])
-                for key, value in conf_normalizers
+                for key, value in conf_normalizers.items()
             }
                 
         )

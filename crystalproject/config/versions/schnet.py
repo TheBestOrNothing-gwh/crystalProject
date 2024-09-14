@@ -9,20 +9,16 @@ module_config = {
             "atom_embedding":{
                 "config_path": "/home/gwh/project/crystalProject/models/crystalProject/crystalproject/assets/atom_init.json"
             },
-            "atom_hidden_channels": 128,
-            "atom_radius_graph":{
-                "name": "cgcnn",
+            "atom_hidden_channels": 64,
+            "atom_bond_graph":{
+                "name": "schnet",
                 "kwargs":{
                     "num_layers": 3,
-                    "edge_embedding":{
-                        "dmin": 0.0,
-                        "dmax": 8.0 * angstrom,
-                        "step": 0.2 * angstrom
-                    }
+                    "cutoff": 5.0 * angstrom
                 }
             },
-            "atom_bond_graph":{},
-            "cluster_hidden_channels": 128,
+            "atom_radius_graph":{},
+            "cluster_hidden_channels": 64,
             "cluster_graph":{},
             "linker_graph":{},
             "underling_network":{}
@@ -31,7 +27,7 @@ module_config = {
     "predictor":{
         "targets": {
             "absolute methane uptake high P [v STP/v]": 0.01, 
-            "absolute methane uptake low P [v STP/v]": 1,
+            "absolute methane uptake low P [v STP/v]": 1.,
             "CO2 Qst [kJ/mol]": 1.,
             "CO2 kH [mol/kg/Pa] log": 1.
         },
@@ -39,7 +35,7 @@ module_config = {
             {
                 "name": "mlphead",
                 "kwargs":{
-                    "in_channels": 128,
+                    "in_channels": 64,
                     "out_channels": 4,
                     "targets": [
                         "absolute methane uptake high P [v STP/v]", 
@@ -53,6 +49,36 @@ module_config = {
                 }
             },
         ]
+    },
+    "normalizers":{
+        "absolute methane uptake high P [v STP/v]": {
+            "name": "gaussian",
+            "kwargs":{
+                "mean":151.0455,
+                "std":37.8794
+            }
+        }, 
+        "absolute methane uptake low P [v STP/v]": {
+            "name": "gaussian",
+            "kwargs":{
+                "mean":21.0435,
+                "std":14.6343
+            }
+        }, 
+        "CO2 Qst [kJ/mol]": {
+            "name": "gaussian",
+            "kwargs":{
+                "mean":-14.5249,
+                "std":4.4183
+            }
+        }, 
+        "CO2 kH [mol/kg/Pa] log": {
+            "name": "gaussian",
+            "kwargs":{
+                "mean":-10.9937,
+                "std":0.5078
+            }
+        }
     },
     "optimizers":{
         "name": "Adam",
@@ -78,8 +104,8 @@ data_config = {
     "dataset":{
         "name": "CrystalTopoDataset",
         "kwargs":{
-            "input_dir": "/home/gwh/project/crystalProject/DATA/cofs_Methane/process/input_dir/8a",
-            "split_dir": "/home/gwh/project/crystalProject/DATA/cofs_Methane/process/split_dir/random1",
+            "input_dir": "/home/gwh/project/crystalProject/DATA/cofs_Methane/process/input_dir/test",
+            "split_dir": "/home/gwh/project/crystalProject/DATA/cofs_Methane/process/split_dir/test",
             "descriptor_index": [
                 "absolute methane uptake high P [v STP/v]", 
                 "absolute methane uptake low P [v STP/v]",
