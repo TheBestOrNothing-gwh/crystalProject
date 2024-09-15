@@ -26,10 +26,10 @@ module_config = {
     },
     "predictor":{
         "targets": {
-            "absolute methane uptake high P [v STP/v]": 0.01, 
-            "absolute methane uptake low P [v STP/v]": 1.,
-            "CO2 Qst [kJ/mol]": 1.,
-            "CO2 kH [mol/kg/Pa] log": 1.
+            "absolute methane uptake high P [v STP/v]": 0.25, 
+            "absolute methane uptake low P [v STP/v]": 0.25,
+            "CO2 Qst [kJ/mol]": 0.25,
+            "CO2 kH [mol/kg/Pa] log": 0.25
         },
         "heads":[
             {
