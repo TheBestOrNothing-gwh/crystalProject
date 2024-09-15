@@ -105,7 +105,7 @@ module_config = {
         "name": "OneCycleLR",
         "kwargs":{
             "max_lr": 5e-4,
-            "total_steps": 1000
+            "total_steps": 200
         },
     },
     "loss":{
@@ -141,7 +141,7 @@ data_config = {
     }
 }
 trainer_config = {
-    "max_epochs": 1000,
+    "max_epochs": 200,
     "min_epochs": 100,
     "default_root_dir": "log/",
     "accumulate_grad_batches":1

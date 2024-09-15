@@ -12,15 +12,15 @@ module_config = {
             "atom_hidden_channels": 128,
             "atom_bond_graph":{
                 "name": "dimenet++",
-                # "kwargs":{
-                #     "cutoff": 5.0 * angstrom,
-                #     "num_layers": 3
-                # }
                 "kwargs":{
-                    "cutoff": 5.0,
-                    "num_layers": 3,
-                    "used_dist": "dist_emb2"
+                    "cutoff": 5.0 * angstrom,
+                    "num_layers": 3
                 }
+                # "kwargs":{
+                #     "cutoff": 5.0,
+                #     "num_layers": 3,
+                #     "used_dist": "dist_emb2"
+                # }
             },
             "atom_radius_graph":{},
             "cluster_hidden_channels": 256,
@@ -96,14 +96,14 @@ module_config = {
     "optimizers":{
         "name": "Adam",
         "kwargs":{
-            "lr":5e-4
+            "lr":1e-4
         },
     },
     "scheduler":{
         "name": "OneCycleLR",
         "kwargs":{
-            "max_lr": 5e-4,
-            "total_steps": 1000
+            "max_lr": 1e-4,
+            "total_steps": 200
         },
     },
     "loss":{
@@ -139,7 +139,7 @@ data_config = {
     }
 }
 trainer_config = {
-    "max_epochs": 1000,
+    "max_epochs": 200,
     "min_epochs": 100,
     "default_root_dir": "log/",
     "accumulate_grad_batches":1
